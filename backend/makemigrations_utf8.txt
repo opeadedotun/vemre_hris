@@ -1,0 +1,39 @@
+﻿.\venv\Scripts\python
+.exe : 
+SystemCheckError: 
+System check 
+identified some 
+issues:
+At line:1 char:1
++ .\venv\Scripts\pyth
+on.exe manage.py 
+makemigrations > 
+makemigrations_o ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (SystemC   
+ heckErro...ed so    
+me issues::Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+
+ERRORS:
+api.Employee.passport
+: (fields.E210) 
+Cannot use 
+ImageField because 
+Pillow is not 
+installed.
+	HINT: Get Pillow at 
+https://pypi.org/proj
+ect/Pillow/ or run 
+command "python -m 
+pip install Pillow".

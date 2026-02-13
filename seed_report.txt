@@ -1,0 +1,6 @@
+Seeding database with updated Shifts and KPI Framework...
+Created 5 departments.
+Users seeded.
+Created 7 job roles with shifts (salaries not pre-populated).
+KPI Templates seeded with current models.
+SEEDING COMPLETED SUCCESSFULLY

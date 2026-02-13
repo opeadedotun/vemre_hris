@@ -1,0 +1,6 @@
+Checking user 'admin'...
+User found: admin
+Is active: True
+Is staff: True
+Role: ADMIN
+AUTHENTICATION SUCCESSFUL

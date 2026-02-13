@@ -1,0 +1,6 @@
+--- USER AUDIT ---
+Found 2 ADMIN users.
+Username: hr_admin, Email: admin@vemre.com, Active: True, Staff: True, IsSuper: True
+Username: admin, Email: admin@vemre.com, Active: True, Staff: True, IsSuper: True
+Updated 'admin' user with password 'admin123' and full permissions.
+AUTHENTICATION SUCCESS: 'admin' / 'admin123' works in backend shell.

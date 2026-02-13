@@ -1,0 +1,5 @@
+Total Users: 4
+Username: hr_admin, Role: ADMIN, Is Active: True
+Username: hr_manager, Role: HR, Is Active: True
+Username: hr_manager_user, Role: HR, Is Active: True
+Username: admin, Role: ADMIN, Is Active: True
