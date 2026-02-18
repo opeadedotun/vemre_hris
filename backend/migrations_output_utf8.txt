@@ -1,0 +1,10 @@
+api
+ [X] 0001_initial
+ [X] 0002_remove_employee_employment_status_employee_is_active_and_more
+ [X] 0003_jobrole_employee_job_role_rolekpitemplate
+ [X] 0004_employee_employment_status_and_more
+ [X] 0005_remove_employeekpi_kpi_definition_and_more
+ [X] 0006_jobrole_shift_end_jobrole_shift_start_and_more
+ [X] 0007_attendancelog_late_minutes_and_more
+ [X] 0008_create_branch_table
+ [X] 0009_add_file_path_to_attendanceupload

@@ -20,6 +20,14 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.role})"
 
+class Branch(models.Model):
+    name = models.CharField(max_length=100)  # Ogbomosho, Osogbo, Ipata
+    location = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
 class Department(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -43,6 +51,18 @@ class JobRole(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.department.name})"
+
+class EmployeeSchedule(models.Model):
+    employee = models.OneToOneField('Employee', on_delete=models.CASCADE, related_name='schedule')
+    schedule_type = models.CharField(max_length=100)  # e.g., HR Manager, Operations Manager
+    expected_start_time = models.TimeField()
+    expected_end_time = models.TimeField()
+    work_days_pattern = models.CharField(max_length=255, help_text="e.g., Mon-Fri, 4 On 4 Off")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.full_name} - {self.schedule_type}"
 
 class Employee(models.Model):
     STATUS_CHOICES = [
@@ -175,27 +195,34 @@ class PerformanceSummary(models.Model):
         self.save()
 
 class AttendanceUpload(models.Model):
-    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='uploads')
     month = models.CharField(max_length=7)  # YYYY-MM
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     file_name = models.CharField(max_length=255)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    file_path = models.FileField(upload_to='attendance_uploads/')
+    is_uploaded = models.BooleanField(default=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.branch.name} - {self.month}"
 
 class AttendanceLog(models.Model):
-    STATUS_CHOICES = [
-        ('PRESENT', 'Present'),
-        ('ABSENT', 'Absent'),
-        ('LATE', 'Late'),
-        ('HALFDAY', 'Half Day'),
-        ('SICK_LEAVE', 'Sick Leave'),
-        ('EMERGENCY_LEAVE', 'Emergency Leave'),
+    LATE_CATEGORY_CHOICES = [
+        ('IGNORE', 'Ignore (<= 5 min)'),
+        ('LATE_30', 'Late 30 Min (6-30 min)'),
+        ('LATE_1HR', 'Late 1 Hour (31-60 min)'),
+        ('QUERY', 'Query (> 60 min)'),
     ]
     upload = models.ForeignKey(AttendanceUpload, on_delete=models.CASCADE, related_name='logs')
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='logs', null=True)
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='attendance_logs', null=True)
     employee_code = models.CharField(max_length=50)
     date = models.DateField()
-    check_in = models.TimeField(null=True, blank=True)
-    check_out = models.TimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PRESENT')
+    check_in_time = models.TimeField(null=True, blank=True)
+    check_out_time = models.TimeField(null=True, blank=True)
     late_minutes = models.IntegerField(default=0)
+    late_category = models.CharField(max_length=20, choices=LATE_CATEGORY_CHOICES, default='IGNORE')
+    status = models.CharField(max_length=20, default='PRESENT')
 
 class AttendanceSummary(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='attendance_summaries')
@@ -212,6 +239,20 @@ class AttendanceSummary(models.Model):
     class Meta:
         unique_together = ('employee', 'month')
 
+class AttendanceMonthlySummary(models.Model):
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='monthly_attendance_summaries')
+    month = models.CharField(max_length=7)  # YYYY-MM
+    total_late_30 = models.IntegerField(default=0)
+    total_late_1hr = models.IntegerField(default=0)
+    total_query = models.IntegerField(default=0)
+    total_late_days = models.IntegerField(default=0)
+    salary_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_processed = models.BooleanField(default=False)
+    processed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('employee', 'month')
+
 class Appraisal(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='appraisals')
     appraisal_period = models.CharField(max_length=255)
@@ -220,6 +261,22 @@ class Appraisal(models.Model):
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     comments = models.TextField(blank=True, null=True)
     appraisal_date = models.DateField(auto_now_add=True)
+
+class DisciplinaryAction(models.Model):
+    ACTION_TYPES = [
+        ('WARNING', 'Warning'),
+        ('HR_REVIEW', 'HR Review'),
+        ('QUERY_LETTER', 'Query Letter'),
+    ]
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='disciplinary_actions')
+    action_type = models.CharField(max_length=50, choices=ACTION_TYPES)
+    reason = models.TextField()
+    date_issued = models.DateField(auto_now_add=True)
+    month = models.CharField(max_length=7) # YYYY-MM
+    is_resolved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.action_type} - {self.employee.full_name} ({self.month})"
 
 class AuditLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -240,12 +297,13 @@ class SalaryStructure(models.Model):
     def get_hourly_rate(self):
         """
         Calculates hourly rate based on monthly salary (basic + allowances).
-        Uses a standard denominator of 176 hours (22 days * 8 hours) unless specific shift logic is needed.
+        Formula: Daily Rate = Monthly Salary / 22 (common working days)
+                 Hourly Rate = Daily Rate / 8 (common work hours)
         """
         from decimal import Decimal
         total_monthly = self.basic_salary + self.housing_allowance + self.transport_allowance + self.other_allowances
-        # We'll use 176 as a standard monthly working hours divisor
-        return total_monthly / Decimal('176.0')
+        daily_rate = total_monthly / Decimal('22.0')
+        return daily_rate / Decimal('8.0')
 
     def __str__(self):
         return f"Salary for {self.job_role.name}"
@@ -272,6 +330,7 @@ class PayrollRecord(models.Model):
     allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     late_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     absent_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    attendance_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_paid = models.BooleanField(default=False)
 

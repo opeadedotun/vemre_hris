@@ -1,0 +1,195 @@
+﻿python : Traceback (most 
+recent call last):
+At line:1 char:1
++ python seed_branches.py 
+> seed_branches.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (T  
+  raceback (most recent   
+  call last)::String)     
+[], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 105, in 
+_execute
+    return 
+self.cursor.execute(sql, 
+params)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\sqlit
+e3\base.py", line 360, in 
+execute
+    return 
+super().execute(query, 
+params)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+sqlite3.OperationalError: 
+no such table: api_branch
+
+The above exception was 
+the direct cause of the 
+following exception:
+
+Traceback (most recent 
+call last):
+  File "C:\Users\USER\Docu
+ments\Projects\vemrehr\bac
+kend\seed_branches.py", 
+line 16, in <module>
+    branch, created = Bran
+ch.objects.get_or_create(
+                      ^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\manager
+.py", line 87, in 
+manager_method
+    return getattr(self.ge
+t_queryset(), 
+name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\query.p
+y", line 948, in 
+get_or_create
+    return 
+self.get(**kwargs), False
+           
+^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\query.p
+y", line 631, in get
+    num = len(clone)
+          ^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\query.p
+y", line 368, in __len__
+    self._fetch_all()
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\query.p
+y", line 1954, in 
+_fetch_all
+    self._result_cache = l
+ist(self._iterable_class(s
+elf))
+                         ^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\query.p
+y", line 93, in __iter__
+    results = 
+compiler.execute_sql(
+              
+^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\models\sql\com
+piler.py", line 1623, in 
+execute_sql
+    cursor.execute(sql, 
+params)
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 122, in execute
+    return 
+super().execute(sql, 
+params)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 79, in execute
+    return self._execute_w
+ith_wrappers(
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 92, in 
+_execute_with_wrappers
+    return executor(sql, 
+params, many, context)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 100, in 
+_execute
+    with self.db.wrap_data
+base_errors:
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\utils.py", 
+line 91, in __exit__
+    raise dj_exc_value.wit
+h_traceback(traceback) 
+from exc_value
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\utils
+.py", line 105, in 
+_execute
+    return 
+self.cursor.execute(sql, 
+params)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\AppD
+ata\Local\Programs\Python\
+Python311\Lib\site-package
+s\django\db\backends\sqlit
+e3\base.py", line 360, in 
+execute
+    return 
+super().execute(query, 
+params)
+           ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+django.db.utils.Operationa
+lError: no such table: 
+api_branch
+Operations to perform:
+  Apply all migrations: api
+Running migrations:
+  No migrations to apply.
+  Your models in app(s): 'api' have changes that are not yet reflected in a migration, and so won't be applied.
+  Run 'manage.py makemigrations' to make new migrations, and then re-run 'manage.py migrate' to apply them.

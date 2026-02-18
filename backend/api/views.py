@@ -11,6 +11,9 @@ from .serializers import (
     AttendanceUploadSerializer, AttendanceLogSerializer, AttendanceSummarySerializer,
     SalaryStructureSerializer, PayrollRunSerializer, PayrollRecordSerializer
 )
+from .services.attendance import AttendanceEngine
+from django.utils import timezone
+from .services.attendance import AttendanceEngine
 
 class IsAdminOrHR(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -230,7 +233,7 @@ class JobRoleViewSet(viewsets.ModelViewSet):
         return JobRoleSerializer
 
 class AttendanceUploadViewSet(viewsets.ModelViewSet):
-    queryset = AttendanceUpload.objects.all().order_by('-timestamp')
+    queryset = AttendanceUpload.objects.all().order_by('-uploaded_at')
     serializer_class = AttendanceUploadSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -243,107 +246,174 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
     def process(self, request):
         file = request.FILES.get('file')
         month = request.data.get('month')
-        if not file or not month:
-            return Response({"error": "File and month are required"}, status=status.HTTP_400_BAD_REQUEST)
+        branch_id = request.data.get('branch') # Expecting ID
         
-        import csv
-        import io
-        from datetime import datetime
+        if not file or not month or not branch_id:
+            return Response({"error": "File, month, and branch are required"}, status=status.HTTP_400_BAD_REQUEST)
         
+        try:
+            branch = Branch.objects.get(id=branch_id)
+        except Branch.DoesNotExist:
+            return Response({"error": "Invalid branch ID"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create upload record
         upload = AttendanceUpload.objects.create(
             uploaded_by=request.user,
             month=month,
-            file_name=file.name
+            file_name=file.name,
+            branch=branch,
+            is_uploaded=True
         )
         
         try:
-            decoded_file = file.read().decode('utf-8')
-            io_string = io.StringIO(decoded_file)
-            reader = csv.DictReader(io_string)
+            # Initialize Engine
+            engine = AttendanceEngine()
             
+            # Save file to temp path for pandas
+            import os
+            import tempfile
+            
+            suffix = os.path.splitext(file.name)[1]
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                for chunk in file.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+            
+            try:
+                parsed_data = engine.parse_file(tmp_path, branch.id, month)
+            finally:
+                os.unlink(tmp_path)
+            
+            employees = Employee.objects.filter(is_active=True)
             logs = []
-            codes = set()
             
-            for row in reader:
-                code = row.get('employee_code')
-                date_str = row.get('date')
-                if not code or not date_str: continue
+            for row in parsed_data:
+                # Match employee
+                emp = engine.match_employee(row['employee_raw'], employees)
+                if not emp:
+                    # Optional: Log warning or store raw name
+                    continue
                 
-                employee = Employee.objects.filter(employee_code=code).first()
-                # We need employee for shift timings
+                # Check for schedule/shift to calculate lateness
+                expected_start = None
+                if hasattr(emp, 'job_role') and emp.job_role and emp.job_role.shift_start:
+                    expected_start = emp.job_role.shift_start
                 
-                check_in_str = row.get('check_in')
-                late_mins = 0
-                status_val = row.get('status', 'PRESENT').upper()
-
-                if check_in_str and employee and employee.job_role and employee.job_role.shift_start:
-                    try:
-                        # Handle different time formats if necessary, assuming HH:MM:SS or HH:MM
-                        t_fmt = '%H:%M:%S' if len(check_in_str.split(':')) == 3 else '%H:%M'
-                        ci_time = datetime.strptime(check_in_str, t_fmt).time()
-                        ss_time = employee.job_role.shift_start
-                        
-                        ci_total_mins = ci_time.hour * 60 + ci_time.minute
-                        ss_total_mins = ss_time.hour * 60 + ss_time.minute
-                        
-                        if ci_total_mins > ss_total_mins:
-                            late_mins = ci_total_mins - ss_total_mins
-                            # Automatically mark as LATE if more than 5 mins
-                            if late_mins > 5 and status_val == 'PRESENT':
-                                status_val = 'LATE'
-                    except Exception as e:
-                        print(f"Error parsing time: {e}")
+                late_mins, late_category = engine.classify_lateness(row['check_in'], expected_start)
                 
-                codes.add(code)
                 logs.append(AttendanceLog(
                     upload=upload,
-                    employee_code=code,
-                    date=datetime.strptime(date_str, '%Y-%m-%d').date(),
-                    check_in=check_in_str if check_in_str else None,
-                    check_out=row.get('check_out') if row.get('check_out') else None,
-                    status=status_val,
-                    late_minutes=late_mins
+                    branch=branch,
+                    employee_code=emp.employee_code,
+                    date=row['date'],
+                    check_in=row['check_in'],
+                    check_out=row['check_out'],
+                    status="PRESENT", 
+                    late_minutes=late_mins,
+                    late_category=late_category
                 ))
             
             AttendanceLog.objects.bulk_create(logs)
             
-            # Update summaries
-            from django.db.models import Count, Q
-            for code in codes:
-                employee = Employee.objects.filter(employee_code=code).first()
-                if not employee: continue
-                
-                summary, _ = AttendanceSummary.objects.get_or_create(
-                    employee=employee,
-                    month=month
-                )
-                
-                # Aggregate all logs for this month/employee across all uploads? 
-                # Actually, standard HR logic might be better: sum existing summary + new logs?
-                # Better: full recalculation for the month from ALL logs of that month.
-                month_logs = AttendanceLog.objects.filter(employee_code=code, date__startswith=month)
-                
-                summary.total_days = month_logs.count()
-                summary.present_days = month_logs.filter(status='PRESENT').count()
-                summary.absent_days = month_logs.filter(status='ABSENT').count()
-                summary.late_days = month_logs.filter(status='LATE').count()
-                summary.total_late_minutes = month_logs.aggregate(total=Sum('late_minutes'))['total'] or 0
-                summary.half_days = month_logs.filter(status='HALFDAY').count()
-                summary.sick_leave = month_logs.filter(status='SICK_LEAVE').count()
-                summary.emergency_leave = month_logs.filter(status='EMERGENCY_LEAVE').count()
-                summary.save()
-
-            return Response({"message": f"Successfully processed {len(logs)} logs."}, status=status.HTTP_201_CREATED)
+            return Response({"message": f"Successfully processed {len(logs)} logs for {branch.name}."}, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             upload.delete()
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-class AttendanceSummaryViewSet(viewsets.ReadOnlyModelViewSet):
+class AttendanceSummaryViewSet(viewsets.ModelViewSet):
     queryset = AttendanceSummary.objects.all()
     serializer_class = AttendanceSummarySerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['month', 'employee']
+
+    @action(detail=False, methods=['post'])
+    def process_monthly(self, request):
+        month = request.data.get('month')
+        if not month:
+            return Response({"error": "Month is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 1. Gatekeeping: Check all branches
+        required_branches = ['Ogbomosho', 'Osogbo', 'Ipata'] 
+        # Ideally, fetch from DB: Branch.objects.values_list('name', flat=True)
+        # But for now, we check if we have uploads for all branches for this month
+        
+        uploaded_branches = AttendanceUpload.objects.filter(month=month).values_list('branch__name', flat=True).distinct()
+        missing = [b for b in required_branches if b not in uploaded_branches]
+        
+        if missing:
+            return Response({
+                "error": f"Cannot process month. Missing uploads from: {', '.join(missing)}",
+                "missing_branches": missing
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        # 2. Aggregate & Calculate
+        from django.db.models import Sum, Count, Q
+        
+        employees = Employee.objects.filter(is_active=True)
+        summaries = []
+        
+        for emp in employees:
+            logs = AttendanceLog.objects.filter(employee_code=emp.employee_code, date__startswith=month)
+            if not logs.exists(): continue
+            
+            # Counts
+            late_30 = logs.filter(late_category='LATE_30').count()
+            late_1hr = logs.filter(late_category='LATE_1HR').count()
+            query = logs.filter(late_category='QUERY').count()
+            total_late_days = late_30 + late_1hr + query # Or just logs with late_minutes > 5
+            
+            # Deduction Calculation
+            salary_struct = getattr(emp, 'salary_structure', None) # direct relation or through role?
+            # Model says: SalaryStructure OneToOne to JobRole. Employee has JobRole.
+            # So: emp.job_role.salary_structure
+            
+            deduction = Decimal('0.00')
+            if emp.job_role and hasattr(emp.job_role, 'salary_structure'):
+                struct = emp.job_role.salary_structure
+                hourly_rate = struct.get_hourly_rate()
+                
+                # Formula: (Late_30 * Hourly * 0.5) + (Late_1Hr * Hourly * 1.0)
+                d_30 = Decimal(late_30) * hourly_rate * Decimal('0.5')
+                d_1hr = Decimal(late_1hr) * hourly_rate * Decimal('1.0')
+                # Query? Maybe manual or full day? Let's assume 1.5x for now or leave for HR
+                d_query = Decimal(query) * hourly_rate * Decimal('2.0') 
+                
+                deduction = d_30 + d_1hr + d_query
+            
+            # Create/Update Summary
+            summary, _ = AttendanceMonthlySummary.objects.update_or_create(
+                employee=emp,
+                month=month,
+                defaults={
+                    'total_late_30': late_30,
+                    'total_late_1hr': late_1hr,
+                    'total_query': query,
+                    'total_late_days': total_late_days,
+                    'salary_deduction_amount': deduction,
+                    'is_processed': True,
+                    'processed_at': timezone.now()
+                }
+            )
+            
+            # 3. Disciplinary Actions
+            if query > 0:
+                 DisciplinaryAction.objects.get_or_create(
+                    employee=emp, month=month, action_type='QUERY_LETTER',
+                    defaults={'reason': f"Recorded {query} days with > 1 hour lateness."}
+                 )
+            elif total_late_days > 5:
+                 DisciplinaryAction.objects.get_or_create(
+                    employee=emp, month=month, action_type='HR_REVIEW',
+                    defaults={'reason': f"Recorded {total_late_days} late days in {month}."}
+                 )
+            elif total_late_days > 3:
+                 DisciplinaryAction.objects.get_or_create(
+                    employee=emp, month=month, action_type='WARNING',
+                    defaults={'reason': f"Recorded {total_late_days} late days in {month}."}
+                 )
+
+        return Response({"message": "Monthly attendance processed successfully."}, status=status.HTTP_200_OK)
 
 class SalaryStructureViewSet(viewsets.ModelViewSet):
     queryset = SalaryStructure.objects.all()
@@ -377,20 +447,18 @@ class PayrollRunViewSet(viewsets.ModelViewSet):
             salary = getattr(emp.job_role, 'salary_structure', None)
             if not salary: continue
             
-            from .utils import calculate_lateness_penalty
-            
             late_deductions = Decimal('0.00')
             absent_deductions = Decimal('0.00')
+            attendance_deduction = Decimal('0.00')
             
-            if attendance:
-                hourly_rate = salary.get_hourly_rate()
-                # Calculate penalty per late day based on the rules
-                month_logs = AttendanceLog.objects.filter(employee_code=emp.employee_code, date__startswith=month)
-                for log in month_logs:
-                    if log.late_minutes > 0:
-                        late_deductions += calculate_lateness_penalty(log.late_minutes, hourly_rate)
+            # Use processed monthly summary
+            summary = AttendanceMonthlySummary.objects.filter(employee=emp, month=month).first()
+            
+            if summary and summary.is_processed:
+                late_deductions = summary.salary_deduction_amount
+                attendance_deduction = late_deductions # + absent_deductions if available
                 
-                absent_deductions = Decimal(str(attendance.absent_days)) * salary.absent_deduction_rate
+            # If no summary, maybe warning? Or strict 0.
             
             total_allowances = salary.housing_allowance + salary.transport_allowance + salary.other_allowances
             net_salary = (salary.basic_salary + total_allowances) - (late_deductions + absent_deductions)

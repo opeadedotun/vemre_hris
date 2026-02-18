@@ -13,7 +13,9 @@ import {
     Briefcase,
     FileUp,
     Filter,
-    X
+    X,
+    Clock,
+    AlertTriangle
 } from 'lucide-react';
 import EmployeeModal from '../components/EmployeeModal';
 
@@ -42,6 +44,9 @@ const EmployeePage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>();
+    const [activeTab, setActiveTab] = useState<'profile' | 'attendance'>('profile');
+    const [attendanceData, setAttendanceData] = useState<any[]>([]);
+    const [loadingAttendance, setLoadingAttendance] = useState(false);
 
     const fetchEmployees = async () => {
         try {
@@ -63,9 +68,21 @@ const EmployeePage: React.FC = () => {
         setIsModalOpen(true);
     };
 
-    const handleView = (employee: Employee) => {
+    const handleView = async (employee: Employee) => {
         setSelectedEmployee(employee);
         setIsDetailOpen(true);
+        setActiveTab('profile');
+
+        // Fetch attendance data
+        setLoadingAttendance(true);
+        try {
+            const res = await api.get(`/v1/attendance-monthly-summaries/?employee=${employee.id}`);
+            setAttendanceData(res.data);
+        } catch (err) {
+            console.error('Failed to fetch attendance data');
+        } finally {
+            setLoadingAttendance(false);
+        }
     };
 
     const handleAdd = () => {
@@ -288,50 +305,134 @@ const EmployeePage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-8 text-sm">
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Contact Information</h3>
-                                    <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Email</span>
-                                            <span className="font-semibold text-slate-800">{selectedEmployee.email}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Employee Code</span>
-                                            <span className="font-semibold text-slate-800">{selectedEmployee.employee_code}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Joined Date</span>
-                                            <span className="font-semibold text-slate-800">{new Date(selectedEmployee.created_at).toLocaleDateString()}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <h3 className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Administrative Details</h3>
-                                    <div className="bg-slate-50 p-4 rounded-xl space-y-3">
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Department</span>
-                                            <span className="font-semibold text-slate-800">{selectedEmployee.department_name}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Role</span>
-                                            <span className="font-semibold text-slate-800">{selectedEmployee.job_title}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Probation Ends</span>
-                                            <span className="font-semibold text-slate-800">{selectedEmployee.probation_end_date ? new Date(selectedEmployee.probation_end_date).toLocaleDateString() : 'N/A'}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-slate-500">Status</span>
-                                            <span className={`font-bold ${selectedEmployee.employment_status === 'ACTIVE' ? 'text-green-600' :
-                                                selectedEmployee.employment_status === 'TERMINATED' ? 'text-red-600' : 'text-slate-600'
-                                                }`}>
-                                                {selectedEmployee.employment_status}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
+                            {/* Tabs */}
+                            <div className="flex gap-2 mb-6 border-b border-slate-200">
+                                <button
+                                    onClick={() => setActiveTab('profile')}
+                                    className={`px-4 py-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'profile'
+                                            ? 'border-primary-600 text-primary-600'
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                >
+                                    Profile
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('attendance')}
+                                    className={`px-4 py-2 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'attendance'
+                                            ? 'border-primary-600 text-primary-600'
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                >
+                                    <Clock size={16} />
+                                    Attendance
+                                </button>
                             </div>
+
+                            {/* Profile Tab */}
+                            {activeTab === 'profile' && (
+                                <div className="grid grid-cols-2 gap-8 text-sm">
+                                    <div className="space-y-4">
+                                        <h3 className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Contact Information</h3>
+                                        <div className="bg-slate-50 p-4 rounded-xl space-y-3">
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Email</span>
+                                                <span className="font-semibold text-slate-800">{selectedEmployee.email}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Employee Code</span>
+                                                <span className="font-semibold text-slate-800">{selectedEmployee.employee_code}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Joined Date</span>
+                                                <span className="font-semibold text-slate-800">{new Date(selectedEmployee.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h3 className="font-bold text-slate-400 uppercase tracking-widest text-[10px]">Administrative Details</h3>
+                                        <div className="bg-slate-50 p-4 rounded-xl space-y-3">
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Department</span>
+                                                <span className="font-semibold text-slate-800">{selectedEmployee.department_name}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Role</span>
+                                                <span className="font-semibold text-slate-800">{selectedEmployee.job_title}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Probation Ends</span>
+                                                <span className="font-semibold text-slate-800">{selectedEmployee.probation_end_date ? new Date(selectedEmployee.probation_end_date).toLocaleDateString() : 'N/A'}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Status</span>
+                                                <span className={`font-bold ${selectedEmployee.employment_status === 'ACTIVE' ? 'text-green-600' :
+                                                    selectedEmployee.employment_status === 'TERMINATED' ? 'text-red-600' : 'text-slate-600'
+                                                    }`}>
+                                                    {selectedEmployee.employment_status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Attendance Tab */}
+                            {activeTab === 'attendance' && (
+                                <div className="space-y-4">
+                                    {loadingAttendance ? (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                                            <Loader2 className="animate-spin mb-2" size={32} />
+                                            <span>Loading attendance data...</span>
+                                        </div>
+                                    ) : attendanceData.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {attendanceData.map((record, idx) => (
+                                                <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-800">{record.month}</h4>
+                                                            <p className="text-xs text-slate-500">Processed: {record.processed_at ? new Date(record.processed_at).toLocaleDateString() : 'Pending'}</p>
+                                                        </div>
+                                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.is_processed
+                                                                ? 'bg-green-100 text-green-700'
+                                                                : 'bg-amber-100 text-amber-700'
+                                                            }`}>
+                                                            {record.is_processed ? 'Processed' : 'Pending'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-4 gap-3 mb-3">
+                                                        <div className="bg-white p-3 rounded-lg border border-amber-100">
+                                                            <p className="text-[10px] text-amber-600 font-bold uppercase mb-1">Late 30min</p>
+                                                            <p className="text-lg font-bold text-amber-700">{record.total_late_30}</p>
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-lg border border-orange-100">
+                                                            <p className="text-[10px] text-orange-600 font-bold uppercase mb-1">Late 1hr</p>
+                                                            <p className="text-lg font-bold text-orange-700">{record.total_late_1hr}</p>
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-lg border border-red-100">
+                                                            <p className="text-[10px] text-red-600 font-bold uppercase mb-1">Query</p>
+                                                            <p className="text-lg font-bold text-red-700">{record.total_query}</p>
+                                                        </div>
+                                                        <div className="bg-white p-3 rounded-lg border border-slate-100">
+                                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Total Late</p>
+                                                            <p className="text-lg font-bold text-slate-700">{record.total_late_days}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex justify-between items-center">
+                                                        <span className="text-xs font-bold text-red-700 uppercase">Salary Deduction</span>
+                                                        <span className="text-lg font-bold text-red-700">₦{parseFloat(record.salary_deduction_amount || '0').toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="py-12 text-center text-slate-400">
+                                            <AlertTriangle className="mx-auto mb-2 opacity-20" size={48} />
+                                            <p className="text-sm">No attendance data available</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="mt-8 flex gap-4">
                                 <button onClick={() => { setIsDetailOpen(false); handleEdit(selectedEmployee); }} className="flex-1 bg-primary-600 text-white py-3 rounded-xl font-bold hover:bg-primary-700 transition-colors shadow-lg shadow-primary-900/20">Edit Profile</button>

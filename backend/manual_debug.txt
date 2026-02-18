@@ -1,0 +1,5 @@
+StartCWD: C:\Users\USER\Documents\Projects\vemrehr\backend
+Path: ['C:\\Users\\USER\\Documents\\Projects\\vemrehr\\backend', 'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python311\\python311.zip', 'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python311\\DLLs', 'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python311\\Lib', 'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python311', 'C:\\Users\\USER\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages']
+Django Setup OK
+api.views Import OK
+Test Class Import OK

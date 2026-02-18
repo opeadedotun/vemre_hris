@@ -484,3 +484,5 @@ For technical support or feature requests, contact the development team.
 ---
 
 *Developed for **Vemre Aremu Enterprise Limited** - A comprehensive HR performance management solution for real-world enterprise operations.*
+
+*Powered by **Acenet Technology** - Email: ope_adedotun@live.com*

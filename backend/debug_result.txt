@@ -1,0 +1,7 @@
+Branch model loaded: <class 'api.models.Branch'>
+Table api_branch exists: True
+
+Total Branches: 3
+ - Ogbomosho (Ogbomosho, Nigeria)
+ - Osogbo (Osogbo, Nigeria)
+ - Ipata (Ilorin HQ) (Ilorin, Nigeria)
