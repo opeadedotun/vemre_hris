@@ -14,6 +14,8 @@ const SalaryStructurePage: React.FC = () => {
         basic_salary: 0,
         housing_allowance: 0,
         transport_allowance: 0,
+        medical_allowance: 0,
+        utility_allowance: 0,
         other_allowances: 0,
         late_deduction_rate: 500,
         absent_deduction_rate: 1000
@@ -51,8 +53,10 @@ const SalaryStructurePage: React.FC = () => {
             setFormData({
                 job_role: existing.job_role,
                 basic_salary: Number(existing.basic_salary),
-                housing_allowance: 0,
-                transport_allowance: 0,
+                housing_allowance: Number(existing.housing_allowance || 0),
+                transport_allowance: Number(existing.transport_allowance || 0),
+                medical_allowance: Number(existing.medical_allowance || 0),
+                utility_allowance: Number(existing.utility_allowance || 0),
                 other_allowances: Number(existing.other_allowances),
                 late_deduction_rate: Number(existing.late_deduction_rate),
                 absent_deduction_rate: Number(existing.absent_deduction_rate)
@@ -63,6 +67,8 @@ const SalaryStructurePage: React.FC = () => {
                 basic_salary: 0,
                 housing_allowance: 0,
                 transport_allowance: 0,
+                medical_allowance: 0,
+                utility_allowance: 0,
                 other_allowances: 0,
                 late_deduction_rate: 500,
                 absent_deduction_rate: 1000
@@ -97,6 +103,9 @@ const SalaryStructurePage: React.FC = () => {
             setSaving(false);
         }
     };
+
+    const grossTotal = formData.basic_salary + formData.housing_allowance + formData.transport_allowance +
+        formData.medical_allowance + formData.utility_allowance + formData.other_allowances;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-900">
@@ -144,29 +153,71 @@ const SalaryStructurePage: React.FC = () => {
                         </div>
 
                         <form onSubmit={handleSave} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basic Salary</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        value={formData.basic_salary}
-                                        onChange={(e) => setFormData({ ...formData, basic_salary: Number(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 font-bold text-lg"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Other Allowances</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        value={formData.other_allowances}
-                                        onChange={(e) => setFormData({ ...formData, other_allowances: Number(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
+                            {/* Basic Salary */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basic Salary (Monthly)</label>
+                                <input
+                                    type="number"
+                                    required
+                                    value={formData.basic_salary}
+                                    onChange={(e) => setFormData({ ...formData, basic_salary: Number(e.target.value) || 0 })}
+                                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 font-bold text-lg"
+                                />
+                            </div>
+
+                            {/* Allowances Grid */}
+                            <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                                <h3 className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-4">Monthly Allowances</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Housing Allowance</label>
+                                        <input
+                                            type="number"
+                                            value={formData.housing_allowance}
+                                            onChange={(e) => setFormData({ ...formData, housing_allowance: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transport Allowance</label>
+                                        <input
+                                            type="number"
+                                            value={formData.transport_allowance}
+                                            onChange={(e) => setFormData({ ...formData, transport_allowance: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Medical Allowance</label>
+                                        <input
+                                            type="number"
+                                            value={formData.medical_allowance}
+                                            onChange={(e) => setFormData({ ...formData, medical_allowance: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Utility Allowance</label>
+                                        <input
+                                            type="number"
+                                            value={formData.utility_allowance}
+                                            onChange={(e) => setFormData({ ...formData, utility_allowance: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Other Allowances</label>
+                                        <input
+                                            type="number"
+                                            value={formData.other_allowances}
+                                            onChange={(e) => setFormData({ ...formData, other_allowances: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
+                            {/* Shift Configuration */}
                             <div className="p-4 bg-primary-50 rounded-xl border border-primary-100">
                                 <h3 className="text-[10px] font-bold text-primary-600 uppercase tracking-widest mb-4">Shift Configuration</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -205,6 +256,7 @@ const SalaryStructurePage: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* Deduction Rules */}
                             <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
                                 <h3 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-4">Deduction Rules (Per Day)</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -235,7 +287,7 @@ const SalaryStructurePage: React.FC = () => {
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gross Total</p>
                                     <p className="text-2xl font-black text-slate-800">
-                                        ₦{(formData.basic_salary + formData.other_allowances).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                        ₦{grossTotal.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                                     </p>
                                 </div>
                                 <button

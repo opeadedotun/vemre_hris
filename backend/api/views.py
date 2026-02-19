@@ -2,14 +2,14 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from decimal import Decimal
-from .models import User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, AttendanceLog, AttendanceSummary, SalaryStructure, PayrollRun, PayrollRecord
+from .models import User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, AttendanceLog, AttendanceSummary, AttendanceMonthlySummary, SalaryStructure, PayrollRun, PayrollRecord, Branch
 from .serializers import (
     UserSerializer, DepartmentSerializer, EmployeeSerializer,
     EmployeeKPISerializer,
     PerformanceSummarySerializer, AppraisalSerializer, AuditLogSerializer,
     JobRoleSerializer, KPITemplateSerializer, KPITemplateItemSerializer,
     AttendanceUploadSerializer, AttendanceLogSerializer, AttendanceSummarySerializer,
-    SalaryStructureSerializer, PayrollRunSerializer, PayrollRecordSerializer
+    SalaryStructureSerializer, PayrollRunSerializer, PayrollRecordSerializer, BranchSerializer
 )
 from .services.attendance import AttendanceEngine
 from django.utils import timezone
@@ -321,6 +321,107 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
             upload.delete()
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['post'])
+    def manual_entry(self, request):
+        """Allow HR to manually add an attendance log for a specific employee & date."""
+        employee_id = request.data.get('employee')
+        date = request.data.get('date')
+        check_in = request.data.get('check_in')
+        check_out = request.data.get('check_out', None)
+        branch_id = request.data.get('branch')
+
+        if not employee_id or not date or not check_in or not branch_id:
+            return Response({"error": "employee, date, check_in, and branch are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            emp = Employee.objects.get(id=employee_id)
+            branch = Branch.objects.get(id=branch_id)
+        except (Employee.DoesNotExist, Branch.DoesNotExist):
+            return Response({"error": "Invalid employee or branch ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from datetime import time as dt_time
+        from .services.attendance import AttendanceEngine
+        engine = AttendanceEngine()
+
+        ci = engine.parse_time(check_in)
+        co = engine.parse_time(check_out) if check_out else None
+
+        expected_start = None
+        if emp.job_role and emp.job_role.shift_start:
+            expected_start = emp.job_role.shift_start
+
+        late_mins, late_category = engine.classify_lateness(ci, expected_start)
+
+        log, created = AttendanceLog.objects.update_or_create(
+            employee_code=emp.employee_code,
+            date=date,
+            defaults={
+                'branch': branch,
+                'check_in': ci,
+                'check_out': co,
+                'status': 'PRESENT',
+                'late_minutes': late_mins,
+                'late_category': late_category,
+            }
+        )
+        action_text = 'created' if created else 'updated'
+        return Response({"message": f"Attendance log {action_text} for {emp.full_name} on {date}."}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'])
+    def generate_query(self, request):
+        """Generate a professional query letter for a late employee."""
+        employee_id = request.data.get('employee')
+        month = request.data.get('month')
+
+        if not employee_id or not month:
+            return Response({"error": "employee and month are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            emp = Employee.objects.get(id=employee_id)
+        except Employee.DoesNotExist:
+            return Response({"error": "Invalid employee ID."}, status=status.HTTP_400_BAD_REQUEST)
+
+        logs = AttendanceLog.objects.filter(
+            employee_code=emp.employee_code,
+            date__startswith=month,
+            late_category__in=['LATE_1HR', 'QUERY']
+        ).order_by('date')
+
+        if not logs.exists():
+            return Response({"error": "No late records found for this employee in the given month."}, status=status.HTTP_404_NOT_FOUND)
+
+        from datetime import datetime
+        month_label = datetime.strptime(month, "%Y-%m").strftime("%B %Y")
+        today = datetime.now().strftime("%d %B %Y")
+
+        dates_list = ", ".join([log.date.strftime("%d/%m/%Y") for log in logs])
+        total_late_days = logs.count()
+
+        letter = f"""VEMRE AREMU ENTERPRISE LIMITED
+{today}
+
+QUERY LETTER
+
+Dear {emp.full_name},
+
+RE: EXCESSIVE LATENESS FOR THE MONTH OF {month_label.upper()}
+
+This letter serves as a formal query regarding your persistent lateness to work during the month of {month_label}.
+
+Our records indicate that you arrived late on {total_late_days} occasion(s), specifically on the following date(s): {dates_list}.
+
+As a member of staff, you are expected to resume work at the officially stipulated time as defined by your job schedule. Your persistent lateness constitutes a breach of the company's attendance policy and negatively impacts productivity and team morale.
+
+You are hereby required to provide a written explanation for this conduct within 48 hours of receiving this letter. Failure to provide a satisfactory explanation may result in further disciplinary action, including but not limited to salary deductions, warnings, or suspension.
+
+Please treat this matter with the seriousness it deserves.
+
+Yours faithfully,
+Human Resources Department
+Vemre Aremu Enterprise Limited"""
+
+        return Response({"letter": letter, "employee_name": emp.full_name, "month": month_label}, status=status.HTTP_200_OK)
+
 class AttendanceSummaryViewSet(viewsets.ModelViewSet):
     queryset = AttendanceSummary.objects.all()
     serializer_class = AttendanceSummarySerializer
@@ -330,27 +431,26 @@ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def process_monthly(self, request):
         month = request.data.get('month')
+        branch_id = request.data.get('branch')  # Optional: process per-branch
         if not month:
             return Response({"error": "Month is required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # 1. Gatekeeping: Check all branches
-        required_branches = ['Ogbomosho', 'Osogbo', 'Ipata'] 
-        # Ideally, fetch from DB: Branch.objects.values_list('name', flat=True)
-        # But for now, we check if we have uploads for all branches for this month
+        # No gatekeeping - allow processing for whatever branch data is available
         
-        uploaded_branches = AttendanceUpload.objects.filter(month=month).values_list('branch__name', flat=True).distinct()
-        missing = [b for b in required_branches if b not in uploaded_branches]
-        
-        if missing:
-            return Response({
-                "error": f"Cannot process month. Missing uploads from: {', '.join(missing)}",
-                "missing_branches": missing
-            }, status=status.HTTP_400_BAD_REQUEST)
-            
         # 2. Aggregate & Calculate
         from django.db.models import Sum, Count, Q
         
+        engine = AttendanceEngine()
+        working_days = engine.get_working_days_in_month(month)
+        
         employees = Employee.objects.filter(is_active=True)
+        # If branch_id is provided, filter employees by branch (through their attendance logs)
+        if branch_id:
+            emp_codes = AttendanceLog.objects.filter(
+                branch_id=branch_id, date__startswith=month
+            ).values_list('employee_code', flat=True).distinct()
+            employees = employees.filter(employee_code__in=emp_codes)
+        
         summaries = []
         
         for emp in employees:
@@ -358,30 +458,39 @@ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
             if not logs.exists(): continue
             
             # Counts
+            present_days = logs.values('date').distinct().count()
+            
+            # Use employee-specific shift pattern if possible, else default
+            emp_working_days = working_days
+            if emp.job_role:
+                emp_working_days = engine.get_working_days_in_month(month, emp.job_role.work_days_type)
+            
+            absent_days = max(0, emp_working_days - present_days)
+            
             late_30 = logs.filter(late_category='LATE_30').count()
             late_1hr = logs.filter(late_category='LATE_1HR').count()
             query = logs.filter(late_category='QUERY').count()
-            total_late_days = late_30 + late_1hr + query # Or just logs with late_minutes > 5
+            total_late_days = late_30 + late_1hr + query
             
             # Deduction Calculation
-            salary_struct = getattr(emp, 'salary_structure', None) # direct relation or through role?
-            # Model says: SalaryStructure OneToOne to JobRole. Employee has JobRole.
-            # So: emp.job_role.salary_structure
+            late_deduction = Decimal('0.00')
+            absent_deduction = Decimal('0.00')
             
-            deduction = Decimal('0.00')
             if emp.job_role and hasattr(emp.job_role, 'salary_structure'):
                 struct = emp.job_role.salary_structure
                 hourly_rate = struct.get_hourly_rate()
                 
-                # Formula: (Late_30 * Hourly * 0.5) + (Late_1Hr * Hourly * 1.0)
+                # Lateness: hourly based
                 d_30 = Decimal(late_30) * hourly_rate * Decimal('0.5')
                 d_1hr = Decimal(late_1hr) * hourly_rate * Decimal('1.0')
-                # Query? Maybe manual or full day? Let's assume 1.5x for now or leave for HR
                 d_query = Decimal(query) * hourly_rate * Decimal('2.0') 
+                late_deduction = d_30 + d_1hr + d_query
                 
-                deduction = d_30 + d_1hr + d_query
+                # Absence: flat rate from structure
+                absent_deduction = Decimal(absent_days) * struct.absent_deduction_rate
             
-            # Create/Update Summary
+            total_deduction = late_deduction + absent_deduction
+            
             summary, _ = AttendanceMonthlySummary.objects.update_or_create(
                 employee=emp,
                 month=month,
@@ -390,7 +499,9 @@ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
                     'total_late_1hr': late_1hr,
                     'total_query': query,
                     'total_late_days': total_late_days,
-                    'salary_deduction_amount': deduction,
+                    'absent_days': absent_days,
+                    'salary_deduction_amount': total_deduction,
+                    'absent_deduction_amount': absent_deduction,
                     'is_processed': True,
                     'processed_at': timezone.now()
                 }
@@ -415,6 +526,7 @@ class AttendanceSummaryViewSet(viewsets.ModelViewSet):
 
         return Response({"message": "Monthly attendance processed successfully."}, status=status.HTTP_200_OK)
 
+
 class SalaryStructureViewSet(viewsets.ModelViewSet):
     queryset = SalaryStructure.objects.all()
     serializer_class = SalaryStructureSerializer
@@ -427,49 +539,62 @@ class PayrollRunViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def process(self, request):
+        from .services.tax import calculate_monthly_tax
         month = request.data.get('month')
         if not month:
             return Response({"error": "Month is required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Check if already exists? Overwrite?
         existing = PayrollRun.objects.filter(month=month).exclude(status='DRAFT').first()
         if existing:
             return Response({"error": f"Payroll for {month} is already processed or paid."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create or Get Draft
         payroll_run, _ = PayrollRun.objects.get_or_create(month=month, status='DRAFT')
-        payroll_run.records.all().delete() # Clear existing draft records
+        payroll_run.records.all().delete()
         
         employees = Employee.objects.filter(employment_status='ACTIVE')
         records = []
         
         for emp in employees:
-            salary = getattr(emp.job_role, 'salary_structure', None)
-            if not salary: continue
+            salary = getattr(emp.job_role, 'salary_structure', None) if emp.job_role else None
+            if not salary:
+                continue
             
             late_deductions = Decimal('0.00')
             absent_deductions = Decimal('0.00')
             attendance_deduction = Decimal('0.00')
             
-            # Use processed monthly summary
             summary = AttendanceMonthlySummary.objects.filter(employee=emp, month=month).first()
-            
             if summary and summary.is_processed:
-                late_deductions = summary.salary_deduction_amount
-                attendance_deduction = late_deductions # + absent_deductions if available
-                
-            # If no summary, maybe warning? Or strict 0.
+                late_deductions = summary.salary_deduction_amount - summary.absent_deduction_amount
+                absent_deductions = summary.absent_deduction_amount
+                attendance_deduction = summary.salary_deduction_amount
             
-            total_allowances = salary.housing_allowance + salary.transport_allowance + salary.other_allowances
-            net_salary = (salary.basic_salary + total_allowances) - (late_deductions + absent_deductions)
+            housing = salary.housing_allowance
+            transport = salary.transport_allowance
+            medical = salary.medical_allowance
+            utility = salary.utility_allowance
+            other = salary.other_allowances
+            total_allowances = housing + transport + medical + utility + other
+            
+            monthly_gross = salary.basic_salary + total_allowances
+            tax_deduction = calculate_monthly_tax(monthly_gross)
+            
+            net_salary = monthly_gross - late_deductions - absent_deductions - tax_deduction
             
             records.append(PayrollRecord(
                 payroll_run=payroll_run,
                 employee=emp,
                 basic_salary=salary.basic_salary,
-                allowances=total_allowances,
+                housing_allowance=housing,
+                transport_allowance=transport,
+                medical_allowance=medical,
+                utility_allowance=utility,
+                other_allowances=other,
+                total_allowances=total_allowances,
                 late_deductions=late_deductions,
                 absent_deductions=absent_deductions,
+                attendance_deduction=attendance_deduction,
+                tax_deduction=tax_deduction,
                 net_salary=net_salary
             ))
             
@@ -479,8 +604,51 @@ class PayrollRunViewSet(viewsets.ModelViewSet):
         
         return Response({"message": f"Successfully processed payroll for {len(records)} employees.", "id": payroll_run.id}, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        payroll_run = self.get_object()
+        if payroll_run.status != 'DRAFT':
+            return Response({"error": "Only draft payrolls can be approved."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        payroll_run.status = 'APPROVED'
+        payroll_run.save()
+        log_action(request.user, 'APPROVE', 'PayrollRun', payroll_run.id)
+        return Response({"message": f"Payroll for {payroll_run.month} approved successfully."})
+
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        import csv
+        from django.http import HttpResponse
+        payroll_run = self.get_object()
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="payroll_{payroll_run.month}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Employee', 'Basic Salary', 'Housing', 'Transport', 'Medical',
+            'Utility', 'Other', 'Total Allowances', 'Late Ded.', 'Absent Ded.',
+            'Tax Deduction', 'Net Salary'
+        ])
+        
+        for r in payroll_run.records.select_related('employee').all():
+            writer.writerow([
+                r.employee.full_name,
+                r.basic_salary, r.housing_allowance, r.transport_allowance,
+                r.medical_allowance, r.utility_allowance, r.other_allowances,
+                r.total_allowances, r.late_deductions, r.absent_deductions,
+                r.tax_deduction, r.net_salary
+            ])
+        
+        return response
+
 class PayrollRecordViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = PayrollRecord.objects.all()
     serializer_class = PayrollRecordSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['payroll_run', 'employee']
+
+class BranchViewSet(viewsets.ModelViewSet):
+    queryset = Branch.objects.all()
+    serializer_class = BranchSerializer
+    permission_classes = [permissions.IsAuthenticated]

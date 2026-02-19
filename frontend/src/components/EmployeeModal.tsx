@@ -167,14 +167,44 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-slate-800">
-                        {employee ? 'Edit Employee' : 'Add New Employee'}
-                    </h2>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={24} />
-                    </button>
-                </div>
+                {employee ? (
+                    <div className="bg-green-600 px-6 py-8 text-white relative">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                            <X size={24} />
+                        </button>
+                        <h2 className="text-2xl font-bold uppercase tracking-wide">
+                            {employee.full_name}
+                        </h2>
+                        <p className="text-green-100 text-sm font-medium mt-1">
+                            {employee.employee_code}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-slate-800 uppercase">
+                            Add New Employee
+                        </h2>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <X size={24} />
+                        </button>
+                    </div>
+                )}
+
+                {employee && (
+                    <div className="px-6 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Role & Department</span>
+                            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                                <span>{employee.job_title}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-primary-600">{departments.find(d => d.id === employee.department)?.name || '...'}</span>
+                            </div>
+                        </div>
+                        <div className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${employee.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                            {employee.employment_status}
+                        </div>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (

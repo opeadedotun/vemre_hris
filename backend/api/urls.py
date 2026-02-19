@@ -6,7 +6,7 @@ from .views import (
     EmployeeKPIViewSet,
     PerformanceSummaryViewSet, AppraisalViewSet, AuditLogViewSet,
     JobRoleViewSet, AttendanceUploadViewSet, AttendanceSummaryViewSet,
-    SalaryStructureViewSet, PayrollRunViewSet, PayrollRecordViewSet
+    SalaryStructureViewSet, PayrollRunViewSet, PayrollRecordViewSet, BranchViewSet
 )
 
 router = DefaultRouter()
@@ -25,6 +25,7 @@ router.register(r'attendance-summaries', AttendanceSummaryViewSet)
 router.register(r'salary-structures', SalaryStructureViewSet)
 router.register(r'payroll-runs', PayrollRunViewSet)
 router.register(r'payroll-records', PayrollRecordViewSet)
+router.register(r'branches', BranchViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),

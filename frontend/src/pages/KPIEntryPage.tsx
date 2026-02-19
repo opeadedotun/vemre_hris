@@ -214,7 +214,7 @@ const KPIEntryPage: React.FC = () => {
                             {entries.map((entry, idx) => (
                                 <div key={idx} className="grid grid-cols-12 gap-4 items-center px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
                                     <div className="col-span-7">
-                                        <p className="font-bold text-slate-800 capitalize-first">
+                                        <p className="font-bold text-slate-800 uppercase">
                                             {entry.kpi_name}
                                         </p>
                                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Weight: {entry.weight_points} pts</p>

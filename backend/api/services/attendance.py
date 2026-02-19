@@ -149,3 +149,35 @@ class AttendanceEngine:
         # If multiple, try to narrow down by role if possible (would need role clues in raw_name)
         # For now, return the first or None
         return potential_matches[0] if potential_matches else None
+
+    def get_working_days_in_month(self, month_str, work_days_type='MON_FRI'):
+        """
+        Calculates the number of expected working days in a month.
+        month_str: YYYY-MM
+        """
+        try:
+            year, month = map(int, month_str.split('-'))
+            import calendar
+            _, num_days = calendar.monthrange(year, month)
+            
+            working_days = 0
+            for day in range(1, num_days + 1):
+                dt = datetime(year, month, day)
+                weekday = dt.weekday() # 0=Mon, 6=Sun
+                
+                if work_days_type == 'MON_FRI':
+                    if weekday < 5: # Mon-Fri
+                        working_days += 1
+                elif work_days_type == 'DAILY':
+                    working_days += 1
+                elif work_days_type == 'SHIFT_4_4':
+                    # Simplified 4-on-4-off: assume starts on 1st of month for calculation
+                    # In a real scenario, this would need an anchor date.
+                    if (day - 1) % 8 < 4:
+                        working_days += 1
+                else: # Default to MON_FRI
+                    if weekday < 5:
+                        working_days += 1
+            return working_days
+        except:
+            return 22 # Fallback to standard 22 days

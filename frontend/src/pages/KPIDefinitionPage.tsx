@@ -108,12 +108,12 @@ const KPIDefinitionPage: React.FC = () => {
                             </div>
 
                             <div className="mt-4">
-                                <h3 className="font-bold text-slate-800 text-lg capitalize-first">{template.name}</h3>
+                                <h3 className="font-bold text-slate-800 text-lg uppercase">{template.name}</h3>
                                 <p className="text-primary-600 text-xs font-bold uppercase tracking-wider mt-1">{template.job_role_name}</p>
                                 <div className="mt-3 space-y-1">
                                     {template.items?.slice(0, 3).map((item, idx) => (
                                         <div key={idx} className="flex justify-between text-xs text-slate-500">
-                                            <span>{item.kpi_name}</span>
+                                            <span className="uppercase">{item.kpi_name}</span>
                                             <span className="font-semibold">{item.weight_points} pts</span>
                                         </div>
                                     ))}

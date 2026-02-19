@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, AttendanceLog, AttendanceSummary, SalaryStructure, PayrollRun, PayrollRecord
+from .models import User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, AttendanceLog, AttendanceSummary, SalaryStructure, PayrollRun, PayrollRecord, Branch
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -132,6 +132,10 @@ class SalaryStructureSerializer(serializers.ModelSerializer):
 
 class PayrollRecordSerializer(serializers.ModelSerializer):
     employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    employee_code = serializers.ReadOnlyField(source='employee.employee_code')
+    job_title = serializers.ReadOnlyField(source='employee.job_title')
+    department_name = serializers.ReadOnlyField(source='employee.department.name')
+    passport = serializers.ImageField(source='employee.passport', read_only=True)
 
     class Meta:
         model = PayrollRecord
@@ -143,4 +147,9 @@ class PayrollRunSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PayrollRun
+        fields = '__all__'
+
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
         fields = '__all__'

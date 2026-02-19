@@ -168,6 +168,13 @@ class PerformanceSummary(models.Model):
     class Meta:
         unique_together = ('employee', 'month')
 
+    @classmethod
+    def update_department_rankings(cls, department_id, month):
+        summaries = cls.objects.filter(employee__department_id=department_id, month=month).order_by('-total_score')
+        for i, summary in enumerate(summaries, 1):
+            summary.department_rank = i
+            summary.save()
+
     def update_rating(self):
         score = self.total_score
         outcome = ""
@@ -218,8 +225,8 @@ class AttendanceLog(models.Model):
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE, related_name='attendance_logs', null=True)
     employee_code = models.CharField(max_length=50)
     date = models.DateField()
-    check_in_time = models.TimeField(null=True, blank=True)
-    check_out_time = models.TimeField(null=True, blank=True)
+    check_in = models.TimeField(null=True, blank=True)
+    check_out = models.TimeField(null=True, blank=True)
     late_minutes = models.IntegerField(default=0)
     late_category = models.CharField(max_length=20, choices=LATE_CATEGORY_CHOICES, default='IGNORE')
     status = models.CharField(max_length=20, default='PRESENT')
@@ -246,7 +253,9 @@ class AttendanceMonthlySummary(models.Model):
     total_late_1hr = models.IntegerField(default=0)
     total_query = models.IntegerField(default=0)
     total_late_days = models.IntegerField(default=0)
-    salary_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    absent_days = models.IntegerField(default=0)
+    salary_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0) # Total
+    absent_deduction_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_processed = models.BooleanField(default=False)
     processed_at = models.DateTimeField(null=True, blank=True)
 
@@ -290,8 +299,10 @@ class SalaryStructure(models.Model):
     basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    utility_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    late_deduction_rate = models.DecimalField(max_digits=10, decimal_places=2, default=500.00)  # Legacy or custom amount
+    late_deduction_rate = models.DecimalField(max_digits=10, decimal_places=2, default=500.00) 
     absent_deduction_rate = models.DecimalField(max_digits=10, decimal_places=2, default=1000.00)
 
     def get_hourly_rate(self):
@@ -301,7 +312,8 @@ class SalaryStructure(models.Model):
                  Hourly Rate = Daily Rate / 8 (common work hours)
         """
         from decimal import Decimal
-        total_monthly = self.basic_salary + self.housing_allowance + self.transport_allowance + self.other_allowances
+        total_monthly = self.basic_salary + self.housing_allowance + self.transport_allowance + \
+                        self.medical_allowance + self.utility_allowance + self.other_allowances
         daily_rate = total_monthly / Decimal('22.0')
         return daily_rate / Decimal('8.0')
 
@@ -327,10 +339,16 @@ class PayrollRecord(models.Model):
     payroll_run = models.ForeignKey(PayrollRun, on_delete=models.CASCADE, related_name='records')
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
     basic_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    housing_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    transport_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    utility_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    other_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     late_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     absent_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     attendance_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_deduction = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     is_paid = models.BooleanField(default=False)
 
@@ -355,3 +373,5 @@ def update_performance_summary(sender, instance, **kwargs):
         ).aggregate(total=Sum('weighted_score'))['total'] or 0
         summary.total_score = total
         summary.update_rating()
+        # Trigger departmental ranking update
+        PerformanceSummary.update_department_rankings(instance.employee.department_id, instance.month)
