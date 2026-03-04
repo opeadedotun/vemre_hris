@@ -6,3 +6,4 @@ django-filter
 python-dotenv
 pandas
 openpyxl
+reportlab

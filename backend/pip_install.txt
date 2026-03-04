@@ -1,0 +1,15 @@
+Collecting pandas
+  Using cached pandas-3.0.1-cp311-cp311-win_amd64.whl.metadata (19 kB)
+Collecting numpy>=1.26.0 (from pandas)
+  Using cached numpy-2.4.2-cp311-cp311-win_amd64.whl.metadata (6.6 kB)
+Collecting python-dateutil>=2.8.2 (from pandas)
+  Using cached python_dateutil-2.9.0.post0-py2.py3-none-any.whl.metadata (8.4 kB)
+Requirement already satisfied: tzdata in c:\users\user\documents\projects\vemrehr\backend\venv\lib\site-packages (from pandas) (2025.3)
+Collecting six>=1.5 (from python-dateutil>=2.8.2->pandas)
+  Using cached six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+Downloading pandas-3.0.1-cp311-cp311-win_amd64.whl (9.9 MB)
+   ---------------------------              6.8/9.9 MB 16.7 kB/s eta 0:03:04
+ERROR: Operation cancelled by user
+
+[notice] A new release of pip is available: 24.0 -> 26.0.1
+[notice] To update, run: C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Scripts\python.exe -m pip install --upgrade pip

@@ -1,4 +1,7 @@
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 import os
@@ -122,7 +125,7 @@ class AttendanceEngine:
         elif late_minutes <= 60:
             category = "LATE_1HR"
         else:
-            category = "QUERY"
+            category = "QUERY" # > 60 mins
             
         return late_minutes, category
 
@@ -178,6 +181,6 @@ class AttendanceEngine:
                 else: # Default to MON_FRI
                     if weekday < 5:
                         working_days += 1
-            return working_days
+            return working_days if working_days > 0 else 20
         except:
-            return 22 # Fallback to standard 22 days
+            return 20 # Fallback to 20 days

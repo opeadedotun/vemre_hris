@@ -1,1 +1,11 @@
 STARTING TEST
+EXCEPTION:
+Traceback (most recent call last):
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\api\tests\test_attendance_flow.py", line 123, in test_full_attendance_payroll_flow
+    self.assertEqual(summary.absent_days, 18)
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python311\Lib\unittest\case.py", line 873, in assertEqual
+    assertion_func(first, second, msg=msg)
+  File "C:\Users\USER\AppData\Local\Programs\Python\Python311\Lib\unittest\case.py", line 866, in _baseAssertEqual
+    raise self.failureException(msg)
+AssertionError: 20 != 18
+

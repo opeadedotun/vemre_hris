@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { X, Loader2, Shield, Mail, User as UserIcon, Lock } from 'lucide-react';
 import api from '../api/axios';
 
+import { useAuth } from '../context/AuthContext';
+
 interface UserModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -10,6 +12,7 @@ interface UserModalProps {
     user?: {
         id: number;
         username: string;
+        first_name: string;
         email: string;
         role: string;
         is_active: boolean;
@@ -17,11 +20,13 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user }) => {
+    const { user: authUser } = useAuth();
     const [formData, setFormData] = useState({
         username: '',
+        first_name: '',
         email: '',
         password: '',
-        role: 'MANAGER',
+        role: 'STAFF',
         is_active: true
     });
     const [loading, setLoading] = useState(false);
@@ -31,6 +36,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
         if (user) {
             setFormData({
                 username: user.username,
+                first_name: user.first_name || '',
                 email: user.email,
                 password: '', // Password stays blank unless changing
                 role: user.role,
@@ -39,9 +45,10 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
         } else {
             setFormData({
                 username: '',
+                first_name: '',
                 email: '',
                 password: '',
-                role: 'MANAGER',
+                role: 'STAFF',
                 is_active: true
             });
         }
@@ -61,9 +68,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
             }
 
             if (user) {
-                await api.patch(`/v1/users/${user.id}/`, data);
+                await api.patch(`/users/${user.id}/`, data);
             } else {
-                await api.post('/v1/users/', data);
+                await api.post('/users/', data);
             }
             onSuccess();
             onClose();
@@ -76,12 +83,14 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
         }
     };
 
+    const isSelf = user?.id === authUser?.id;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                 <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-slate-800">
-                        {user ? 'Edit System User' : 'Create New User'}
+                        {user ? 'Edit User Access' : 'Create New User'}
                     </h2>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={24} />
@@ -108,6 +117,23 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
                                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                 className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
                                 placeholder="jdoe"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-1">First Name *</label>
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                                <UserIcon size={18} />
+                            </span>
+                            <input
+                                type="text"
+                                required
+                                value={formData.first_name}
+                                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                                placeholder="John"
                             />
                         </div>
                     </div>
@@ -156,16 +182,19 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
                             </span>
                             <select
                                 required
+                                disabled={isSelf}
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white"
+                                className={`w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white ${isSelf ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <option value="ADMIN">Administrator</option>
                                 <option value="HR">HR Officer</option>
-                                <option value="FINANCE">Finance</option>
+                                <option value="ACCOUNTANT">Accountant</option>
                                 <option value="MANAGER">Manager</option>
+                                <option value="STAFF">Staff</option>
                             </select>
                         </div>
+                        {isSelf && <p className="text-[10px] text-amber-600 mt-1 font-bold italic">You cannot change your own access level.</p>}
                     </div>
 
                     <div className="flex items-center gap-2 pt-2">

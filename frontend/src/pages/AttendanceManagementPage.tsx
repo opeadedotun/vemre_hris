@@ -46,10 +46,11 @@ const AttendanceManagementPage: React.FC = () => {
     const [queryLetter, setQueryLetter] = useState<string | null>(null);
     const [queryEmployee, setQueryEmployee] = useState('');
     const [generatingQuery, setGeneratingQuery] = useState(false);
+    const [sendingQuery, setSendingQuery] = useState(false);
 
     const fetchBranches = async () => {
         try {
-            const res = await api.get('/v1/branches/');
+            const res = await api.get('/branches/');
             setBranches(res.data);
             if (res.data.length > 0 && !selectedBranch) {
                 setSelectedBranch(res.data[0].id);
@@ -61,7 +62,7 @@ const AttendanceManagementPage: React.FC = () => {
 
     const fetchEmployees = async () => {
         try {
-            const res = await api.get('/v1/employees/');
+            const res = await api.get('/employees/');
             setEmployees(res.data);
         } catch (err) {
             console.error('Failed to fetch employees');
@@ -70,7 +71,7 @@ const AttendanceManagementPage: React.FC = () => {
 
     const fetchUploadStatuses = async () => {
         try {
-            const res = await api.get(`/v1/attendance-uploads/?month=${month}`);
+            const res = await api.get(`/attendance-uploads/?month=${month}`);
             const uploads = res.data;
 
             // Create status map for each branch
@@ -94,7 +95,7 @@ const AttendanceManagementPage: React.FC = () => {
 
     const fetchMonthlySummaries = async () => {
         try {
-            const res = await api.get(`/v1/attendance-monthly-summaries/?month=${month}`);
+            const res = await api.get(`/attendance-monthly-summaries/?month=${month}`);
             setMonthlySummaries(res.data);
         } catch (err) {
             console.error('Failed to fetch monthly summaries');
@@ -117,30 +118,6 @@ const AttendanceManagementPage: React.FC = () => {
         }
     }, [branches]);
 
-    const handleUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!file || !selectedBranch) return;
-
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('month', month);
-        formData.append('branch', selectedBranch.toString());
-
-        try {
-            await api.post('/v1/attendance-uploads/process/', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            alert('Attendance uploaded and processed successfully');
-            setFile(null);
-            fetchData();
-        } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to process attendance file.');
-        } finally {
-            setUploading(false);
-        }
-    };
-
     const handleProcessMonthly = async (branchId?: number) => {
         const branchName = branchId ? branches.find(b => b.id === branchId)?.name : 'all branches';
         if (!confirm(`Process monthly attendance for ${branchName} in ${month}? This will calculate deductions and generate disciplinary actions.`)) {
@@ -149,7 +126,7 @@ const AttendanceManagementPage: React.FC = () => {
 
         setProcessing(true);
         try {
-            await api.post('/v1/attendance-summaries/process_monthly/', {
+            await api.post('/attendance-summaries/process_monthly/', {
                 month,
                 branch: branchId
             });
@@ -166,10 +143,10 @@ const AttendanceManagementPage: React.FC = () => {
         e.preventDefault();
         setSavingManual(true);
         try {
-            const res = await api.post('/v1/attendance-uploads/manual_entry/', manualForm);
+            const res = await api.post('/attendance-uploads/manual_entry/', manualForm);
             alert(res.data.message);
             setManualForm({ employee: '', date: '', check_in: '', check_out: '', branch: '' });
-            fetchData();
+            await fetchData();
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to save manual entry.');
         } finally {
@@ -181,12 +158,29 @@ const AttendanceManagementPage: React.FC = () => {
         if (!queryEmployee) return;
         setGeneratingQuery(true);
         try {
-            const res = await api.post('/v1/attendance-uploads/generate_query/', { employee: queryEmployee, month });
+            const res = await api.post('/attendance-uploads/generate_query/', { employee: queryEmployee, month });
             setQueryLetter(res.data.letter);
         } catch (err: any) {
             alert(err.response?.data?.error || 'Failed to generate query letter.');
         } finally {
             setGeneratingQuery(false);
+        }
+    };
+
+    const handleEmailQuery = async () => {
+        if (!queryEmployee || !queryLetter) return;
+        setSendingQuery(true);
+        try {
+            const res = await api.post('/attendance-uploads/send_query_email/', {
+                employee: queryEmployee,
+                letter: queryLetter,
+                month
+            });
+            alert(res.data.message);
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to send query email.');
+        } finally {
+            setSendingQuery(false);
         }
     };
 
@@ -214,68 +208,8 @@ const AttendanceManagementPage: React.FC = () => {
             {/* Removed Branch Upload Status Cards as per user request */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Upload Section */}
+                {/* Global Monthly Processing Control moved up */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Upload size={18} />
-                            Upload Attendance
-                        </h2>
-                        <form onSubmit={handleUpload} className="space-y-4">
-                            {/* Branch Selection */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wide">Branch</label>
-                                <div className="flex gap-2">
-                                    <select
-                                        value={selectedBranch || ''}
-                                        onChange={(e) => setSelectedBranch(Number(e.target.value))}
-                                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    >
-                                        {branches.map(b => (
-                                            <option key={b.id} value={b.id}>{b.name}</option>
-                                        ))}
-                                    </select>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleProcessMonthly(selectedBranch || undefined)}
-                                        disabled={processing || !selectedBranch}
-                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-1 disabled:opacity-50"
-                                        title="Process selected branch"
-                                    >
-                                        {processing ? <Loader2 className="animate-spin" size={14} /> : <TrendingUp size={14} />}
-                                        Process
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-primary-400 transition-colors">
-                                <input
-                                    type="file"
-                                    id="attendance-file"
-                                    className="hidden"
-                                    accept=".xlsx,.xls,.csv"
-                                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                                />
-                                <label htmlFor="attendance-file" className="cursor-pointer group">
-                                    <FileText className="mx-auto mb-2 text-slate-300 group-hover:text-primary-500 transition-colors" size={48} />
-                                    <p className="text-sm font-medium text-slate-600">
-                                        {file ? file.name : 'Click to select Excel/CSV file'}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 mt-1 uppercase">Auto-detects columns</p>
-                                </label>
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={!file || !selectedBranch || uploading}
-                                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-primary-900/20 transition-all"
-                            >
-                                {uploading ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
-                                Process Upload
-                            </button>
-                        </form>
-                    </div>
-
-                    {/* Monthly Processing Control */}
                     <div className="p-6 rounded-xl shadow-sm border-2 transition-all bg-gradient-to-br from-primary-50 to-primary-100 border-primary-200">
                         <h2 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
                             <Unlock size={18} className="text-primary-600" />
@@ -291,17 +225,6 @@ const AttendanceManagementPage: React.FC = () => {
                                 {processing ? <Loader2 className="animate-spin" size={18} /> : <TrendingUp size={18} />}
                                 Process All Branches
                             </button>
-                            {!allBranchesUploaded && (
-                                <div className="p-2 bg-amber-50 rounded border border-amber-100 mt-2">
-                                    <p className="text-[10px] text-amber-700 font-bold uppercase flex items-center gap-1">
-                                        <AlertTriangle size={10} />
-                                        Pending Uploads
-                                    </p>
-                                    <p className="text-[10px] text-amber-600 mt-1">
-                                        {uploadStatuses.filter(s => !s.is_uploaded).map(s => s.branch_name).join(', ')}
-                                    </p>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -367,8 +290,8 @@ const AttendanceManagementPage: React.FC = () => {
                                 disabled={savingManual}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-green-900/20 transition-all"
                             >
-                                {savingManual ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
-                                Save Entry
+                                {savingManual ? <Loader2 className="animate-spin" size={18} /> : <TrendingUp size={18} />}
+                                Process Entry
                             </button>
                         </form>
                     </div>
@@ -405,7 +328,7 @@ const AttendanceManagementPage: React.FC = () => {
                 {/* Analytics Dashboard */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-xl border border-amber-200">
                             <div className="flex items-center gap-2 mb-2">
                                 <AlertTriangle size={16} className="text-amber-600" />
@@ -523,6 +446,15 @@ const AttendanceManagementPage: React.FC = () => {
                                     title="Copy"
                                 >
                                     <Copy size={16} />
+                                </button>
+                                <button
+                                    onClick={handleEmailQuery}
+                                    disabled={sendingQuery}
+                                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1 text-primary-600 font-bold"
+                                    title="Email to Employee"
+                                >
+                                    {sendingQuery ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                                    <span className="text-xs">Email</span>
                                 </button>
                                 <button
                                     onClick={() => {

@@ -47,7 +47,7 @@ const KPITemplateModal: React.FC<KPITemplateModalProps> = ({
     useEffect(() => {
         const fetchJobRoles = async () => {
             try {
-                const res = await api.get('/v1/job-roles/');
+                const res = await api.get('/job-roles/');
                 setJobRoles(res.data);
             } catch (err) {
                 console.error('Failed to fetch roles');
@@ -99,9 +99,9 @@ const KPITemplateModal: React.FC<KPITemplateModalProps> = ({
             const templateData = { ...formData };
             let res;
             if (kpi) {
-                res = await api.put(`/v1/kpi-templates/${kpi.id}/`, templateData);
+                res = await api.put(`/kpi-templates/${kpi.id}/`, templateData);
             } else {
-                res = await api.post('/v1/kpi-templates/', templateData);
+                res = await api.post('/kpi-templates/', templateData);
             }
 
             const templateId = res.data.id;
@@ -114,10 +114,10 @@ const KPITemplateModal: React.FC<KPITemplateModalProps> = ({
             // Simplified approach for this project: Delete all items for this template and recreate.
             if (kpi) {
                 const existingItems = kpi.items || [];
-                await Promise.all(existingItems.map(item => api.delete(`/v1/kpi-template-items/${item.id}/`)));
+                await Promise.all(existingItems.map(item => api.delete(`/kpi-template-items/${item.id}/`)));
             }
 
-            await Promise.all(items.map(item => api.post('/v1/kpi-template-items/', {
+            await Promise.all(items.map(item => api.post('/kpi-template-items/', {
                 template: templateId,
                 kpi_name: item.kpi_name,
                 weight_points: item.weight_points

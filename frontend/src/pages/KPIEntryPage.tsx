@@ -28,7 +28,7 @@ const KPIEntryPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await api.get('/v1/employees/');
+                const res = await api.get('/employees/');
                 setEmployees(res.data);
             } catch (err) {
                 console.error('Failed to fetch data');
@@ -53,7 +53,7 @@ const KPIEntryPage: React.FC = () => {
             // First, fetch the template for this role
             let templateItems: any[] = [];
             if (emp.job_role) {
-                const templateRes = await api.get(`/v1/kpi-templates/?job_role=${emp.job_role}`);
+                const templateRes = await api.get(`/kpi-templates/?job_role=${emp.job_role}`);
                 const templates = templateRes.data;
                 if (templates.length > 0) {
                     templateItems = templates[0].items; // Use the first active template
@@ -67,7 +67,7 @@ const KPIEntryPage: React.FC = () => {
             }
 
             // Now, fetch existing entries for this month
-            const response = await api.get(`/v1/employee-kpis/?employee=${emp.id}&month=${month}`);
+            const response = await api.get(`/employee-kpis/?employee=${emp.id}&month=${month}`);
             const existingEntries = response.data;
 
             // Map templates to entries, filling in actual_points if it exists
@@ -104,9 +104,9 @@ const KPIEntryPage: React.FC = () => {
                     actual_points: entry.actual_points
                 };
                 if (entry.id) {
-                    return api.put(`/v1/employee-kpis/${entry.id}/`, payload);
+                    return api.put(`/employee-kpis/${entry.id}/`, payload);
                 }
-                return api.post('/v1/employee-kpis/', payload);
+                return api.post('/employee-kpis/', payload);
             }));
             alert('KPIs saved successfully');
             handleEmployeeSelect(selectedEmployee); // Refresh to get IDs

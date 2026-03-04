@@ -22,7 +22,7 @@ def run_checks():
                 template = KPITemplate.objects.filter(job_role=role, is_active=True).first()
                 if template:
                     items = KPITemplateItem.objects.filter(template=template)
-                    total_weight = sum([i.weight for i in items])
+                    total_weight = sum([i.weight_points for i in items])
                     f.write(f"- {role.name}: Template '{template.name}' ({items.count()} items), Total Weight: {total_weight}%\n")
                 else:
                     f.write(f"- {role.name}: NO ACTIVE TEMPLATE\n")
@@ -42,7 +42,7 @@ def run_checks():
                     f.write(f"  KPIs assigned for {month}: {count}\n")
                     
                     kpis = EmployeeKPI.objects.filter(employee=emp, month=month)
-                    total_w = sum([k.weight for k in kpis])
+                    total_w = sum([k.template_item.weight_points for k in kpis if k.template_item])
                     f.write(f"  Actual KPIs in DB: {kpis.count()}, Combined Weight: {total_w}%\n")
                     
                     if total_w != 100 and kpis.count() > 0:

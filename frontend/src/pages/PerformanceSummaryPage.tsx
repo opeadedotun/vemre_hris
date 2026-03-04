@@ -33,7 +33,7 @@ const PerformanceSummaryPage: React.FC = () => {
     const fetchPerformance = async () => {
         setLoading(true);
         try {
-            const response = await api.get(`/v1/performance-summaries/?month=${month}`);
+            const response = await api.get(`/performance-summaries/?month=${month}`);
             // In real scenario, the backend would handle sorting/ranking
             // But we'll do a quick sort here if backend doesn't provide rank yet
             const sorted = response.data.sort((a: any, b: any) => b.total_score - a.total_score);
@@ -51,7 +51,7 @@ const PerformanceSummaryPage: React.FC = () => {
 
     const toggleLock = async (record: PerformanceRecord) => {
         try {
-            await api.patch(`/v1/performance-summaries/${record.id}/`, { is_locked: !record.is_locked });
+            await api.patch(`/performance-summaries/${record.id}/`, { is_locked: !record.is_locked });
             fetchPerformance();
         } catch (err) {
             alert('Error toggling lock status');

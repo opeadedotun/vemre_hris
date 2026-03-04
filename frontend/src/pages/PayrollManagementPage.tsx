@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { CreditCard, Calendar, Play, CheckCircle, Loader2, Search, FileText, Download, Eye } from 'lucide-react';
+import { CreditCard, Calendar, Play, CheckCircle, Loader2, Search, FileText, Download, Eye, Mail, FileDown, Plus } from 'lucide-react';
 import PayrollDetailModal from '../components/PayrollDetailModal';
+import ManualPayrollModal from '../components/ManualPayrollModal';
 
 const PayrollManagementPage: React.FC = () => {
     const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -12,14 +13,16 @@ const PayrollManagementPage: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null); // To track which record is being emailed
 
     const fetchPayroll = async () => {
         setLoading(true);
         try {
-            const res = await api.get(`/v1/payroll-runs/?month=${month}`);
+            const res = await api.get(`/payroll-runs/?month=${month}`);
             const runs = res.data;
             if (runs.length > 0) {
-                const detailRes = await api.get(`/v1/payroll-runs/${runs[0].id}/`);
+                const detailRes = await api.get(`/payroll-runs/${runs[0].id}/`);
                 setPayrollRun(detailRes.data);
             } else {
                 setPayrollRun(null);
@@ -38,7 +41,7 @@ const PayrollManagementPage: React.FC = () => {
     const handleProcess = async () => {
         setProcessing(true);
         try {
-            const res = await api.post('/v1/payroll-runs/process/', { month });
+            const res = await api.post('/payroll-runs/process/', { month });
             alert(res.data.message);
             fetchPayroll();
         } catch (err: any) {
@@ -51,7 +54,7 @@ const PayrollManagementPage: React.FC = () => {
     const handleDownload = async () => {
         if (!payrollRun) return;
         try {
-            const res = await api.get(`/v1/payroll-runs/${payrollRun.id}/download/`, {
+            const res = await api.get(`/payroll-runs/${payrollRun.id}/download/`, {
                 responseType: 'blob'
             });
             const url = window.URL.createObjectURL(new Blob([res.data]));
@@ -72,7 +75,7 @@ const PayrollManagementPage: React.FC = () => {
 
         setProcessing(true);
         try {
-            await api.post(`/v1/payroll-runs/${payrollRun.id}/approve/`);
+            await api.post(`/payroll-runs/${payrollRun.id}/approve/`);
             alert('Payroll approved successfully!');
             fetchPayroll();
         } catch (err: any) {
@@ -85,6 +88,35 @@ const PayrollManagementPage: React.FC = () => {
     const openDetail = (record: any) => {
         setSelectedRecord(record);
         setIsModalOpen(true);
+    };
+
+    const handleDownloadPDF = async (recordId: number, empCode: string) => {
+        try {
+            const res = await api.get(`/payroll-records/${recordId}/payslip_pdf/`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Payslip_${empCode}_${month}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (err) {
+            alert('Failed to download PDF payslip.');
+        }
+    };
+
+    const handleSendEmail = async (recordId: number) => {
+        setActionLoading(String(recordId));
+        try {
+            const res = await api.post(`/payroll-records/${recordId}/send_payslip/`);
+            alert(res.data.message);
+        } catch (err: any) {
+            alert(err.response?.data?.error || 'Failed to send email.');
+        } finally {
+            setActionLoading(null);
+        }
     };
 
     const filteredRecords = payrollRun?.records?.filter((r: any) =>
@@ -110,6 +142,13 @@ const PayrollManagementPage: React.FC = () => {
                             className="bg-transparent text-sm font-bold text-slate-700 outline-none"
                         />
                     </div>
+                    <button
+                        onClick={() => setIsManualModalOpen(true)}
+                        className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 font-bold transition-all shadow-sm"
+                    >
+                        <Plus size={18} className="text-primary-600" />
+                        Manual Payroll
+                    </button>
                     <button
                         onClick={handleProcess}
                         disabled={processing}
@@ -201,11 +240,7 @@ const PayrollManagementPage: React.FC = () => {
                                         <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
                                             <th className="px-4 py-4 text-left">Employee</th>
                                             <th className="px-3 py-4 text-right">Basic</th>
-                                            <th className="px-3 py-4 text-right">Housing</th>
-                                            <th className="px-3 py-4 text-right">Transport</th>
-                                            <th className="px-3 py-4 text-right">Medical</th>
-                                            <th className="px-3 py-4 text-right">Utility</th>
-                                            <th className="px-3 py-4 text-right">Other</th>
+                                            <th className="px-3 py-4 text-right">Other Allowances</th>
                                             <th className="px-3 py-4 text-right">Late Ded.</th>
                                             <th className="px-3 py-4 text-right">Tax</th>
                                             <th className="px-4 py-4 text-right">Net Salary</th>
@@ -223,18 +258,6 @@ const PayrollManagementPage: React.FC = () => {
                                                     {fmt(r.basic_salary)}
                                                 </td>
                                                 <td className="px-3 py-4 text-right text-xs text-slate-500">
-                                                    {fmt(r.housing_allowance || 0)}
-                                                </td>
-                                                <td className="px-3 py-4 text-right text-xs text-slate-500">
-                                                    {fmt(r.transport_allowance || 0)}
-                                                </td>
-                                                <td className="px-3 py-4 text-right text-xs text-slate-500">
-                                                    {fmt(r.medical_allowance || 0)}
-                                                </td>
-                                                <td className="px-3 py-4 text-right text-xs text-slate-500">
-                                                    {fmt(r.utility_allowance || 0)}
-                                                </td>
-                                                <td className="px-3 py-4 text-right text-xs text-slate-500">
                                                     {fmt(r.other_allowances || 0)}
                                                 </td>
                                                 <td className="px-3 py-4 text-right text-xs text-red-400">
@@ -247,9 +270,26 @@ const PayrollManagementPage: React.FC = () => {
                                                     <span className="text-sm font-black text-slate-800">{fmt(r.net_salary)}</span>
                                                 </td>
                                                 <td className="px-2 py-4">
-                                                    <button className="p-1.5 text-slate-300 group-hover:text-primary-600 transition-colors">
-                                                        <Eye size={16} />
-                                                    </button>
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDownloadPDF(r.id, r.employee_code); }}
+                                                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
+                                                            title="Download PDF"
+                                                        >
+                                                            <FileDown size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleSendEmail(r.id); }}
+                                                            disabled={actionLoading === String(r.id)}
+                                                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all disabled:opacity-50"
+                                                            title="Email to Official Email"
+                                                        >
+                                                            {actionLoading === String(r.id) ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                                                        </button>
+                                                        <button className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
+                                                            <Eye size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -266,6 +306,15 @@ const PayrollManagementPage: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 record={selectedRecord}
                 month={month}
+                onEmail={handleSendEmail}
+                emailLoading={actionLoading === String(selectedRecord?.id)}
+            />
+
+            <ManualPayrollModal
+                isOpen={isManualModalOpen}
+                onClose={() => setIsManualModalOpen(false)}
+                month={month}
+                onSuccess={fetchPayroll}
             />
         </div>
     );

@@ -44,9 +44,9 @@ const DepartmentModal: React.FC<DepartmentModalProps> = ({
 
         try {
             if (department) {
-                await api.put(`/v1/departments/${department.id}/`, { name, description });
+                await api.put(`/departments/${department.id}/`, { name, description });
             } else {
-                await api.post('/v1/departments/', { name, description });
+                await api.post('/departments/', { name, description });
             }
             onSuccess();
             onClose();

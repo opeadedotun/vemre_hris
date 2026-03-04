@@ -14,6 +14,21 @@ import AttendanceManagementPage from './pages/AttendanceManagementPage';
 import SalaryStructurePage from './pages/SalaryStructurePage';
 import PayrollManagementPage from './pages/PayrollManagementPage';
 import Dashboard from './pages/Dashboard';
+import ESSDashboard from './pages/ESSDashboard';
+import MyDocumentsPage from './pages/MyDocumentsPage';
+import TicketManagementPage from './pages/TicketManagementPage';
+import MyTicketsPage from './pages/MyTicketsPage';
+import MyLeavesPage from './pages/MyLeavesPage';
+import CareersPage from './pages/CareersPage';
+import RecruitmentPage from './pages/RecruitmentPage';
+import MyExpensesPage from './pages/MyExpensesPage';
+import ReimbursementPage from './pages/ReimbursementPage';
+import MyProfilePage from './pages/MyProfilePage';
+import KnowledgeDashboard from './pages/KnowledgeDashboard';
+import KnowledgeArticleView from './pages/KnowledgeArticleView';
+import KnowledgeArticleEdit from './pages/KnowledgeArticleEdit';
+import KnowledgeSearchPage from './pages/KnowledgeSearchPage';
+import OnboardingPage from './pages/OnboardingPage';
 
 function App() {
     return (
@@ -25,18 +40,44 @@ function App() {
                     <Route element={<ProtectedRoute />}>
                         <Route element={<Layout />}>
                             <Route path="/" element={<Dashboard />} />
-                            <Route path="/departments" element={<DepartmentPage />} />
-                            <Route path="/employees" element={<EmployeePage />} />
-                            <Route path="/kpis" element={<KPIEntryPage />} />
-                            <Route path="/templates" element={<KPIDefinitionPage />} />
-                            <Route path="/performance" element={<PerformanceSummaryPage />} />
-                            <Route path="/history" element={<HistoryPage />} />
-                            <Route path="/attendance" element={<AttendanceManagementPage />} />
-                            <Route path="/salary" element={<SalaryStructurePage />} />
-                            <Route path="/payroll" element={<PayrollManagementPage />} />
-                            <Route path="/users" element={<UserManagementPage />} />
+
+                            {/* Management Routes - Protected for Admin only */}
+                            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+                                <Route path="/users" element={<UserManagementPage />} />
+                                <Route path="/departments" element={<DepartmentPage />} />
+                                <Route path="/employees" element={<EmployeePage />} />
+                                <Route path="/kpis" element={<KPIEntryPage />} />
+                                <Route path="/templates" element={<KPIDefinitionPage />} />
+                                <Route path="/performance" element={<PerformanceSummaryPage />} />
+                                <Route path="/history" element={<HistoryPage />} />
+                                <Route path="/attendance" element={<AttendanceManagementPage />} />
+                                <Route path="/salary" element={<SalaryStructurePage />} />
+                                <Route path="/payroll" element={<PayrollManagementPage />} />
+                                <Route path="/reimbursements" element={<ReimbursementPage />} />
+                                <Route path="/recruitment" element={<RecruitmentPage />} />
+                                <Route path="/tickets" element={<TicketManagementPage />} />
+                            </Route>
+
+                            {/* Private Staff/Common Routes */}
+                            <Route path="/profile" element={<MyProfilePage />} />
+                            <Route path="/knowledge" element={<KnowledgeDashboard />} />
+                            <Route path="/knowledge/:slug" element={<KnowledgeArticleView />} />
+                            <Route path="/knowledge/new" element={<KnowledgeArticleEdit />} />
+                            <Route path="/knowledge/edit/:slug" element={<KnowledgeArticleEdit />} />
+                            <Route path="/knowledge/search" element={<KnowledgeSearchPage />} />
+
+                            {/* ESS Routes */}
+                            <Route path="/onboarding" element={<OnboardingPage />} />
+                            <Route path="/my-dashboard" element={<ESSDashboard />} />
+                            <Route path="/my-documents" element={<MyDocumentsPage />} />
+                            <Route path="/my-tickets" element={<MyTicketsPage />} />
+                            <Route path="/my-leaves" element={<MyLeavesPage />} />
+                            <Route path="/my-expenses" element={<MyExpensesPage />} />
                         </Route>
                     </Route>
+
+                    {/* Public Recruitment Routes */}
+                    <Route path="/careers" element={<CareersPage />} />
 
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

@@ -65,8 +65,8 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
         const fetchMetadata = async () => {
             try {
                 const [deptRes, roleRes] = await Promise.all([
-                    api.get('/v1/departments/'),
-                    api.get('/v1/job-roles/')
+                    api.get('/departments/'),
+                    api.get('/job-roles/')
                 ]);
                 setDepartments(deptRes.data);
                 setJobRoles(roleRes.data);
@@ -137,11 +137,11 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
             }
 
             if (employee) {
-                await api.patch(`/v1/employees/${employee.id}/`, submitData, {
+                await api.patch(`/employees/${employee.id}/`, submitData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {
-                await api.post('/v1/employees/', submitData, {
+                await api.post('/employees/', submitData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             }
@@ -168,16 +168,27 @@ const EmployeeModal: React.FC<EmployeeModalProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
                 {employee ? (
-                    <div className="bg-green-600 px-6 py-8 text-white relative">
-                        <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                    <div className="bg-emerald-600 px-6 py-10 text-white relative overflow-hidden">
+                        {/* Decorative Patterns */}
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl animate-pulse"></div>
+                        <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-400/20 rounded-full -ml-16 -mb-16 blur-2xl"></div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-black/10"></div>
+
+                        <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors z-10">
                             <X size={24} />
                         </button>
-                        <h2 className="text-2xl font-bold uppercase tracking-wide">
-                            {employee.full_name}
-                        </h2>
-                        <p className="text-green-100 text-sm font-medium mt-1">
-                            {employee.employee_code}
-                        </p>
+                        <div className="relative z-10">
+                            <h2 className="text-3xl font-black uppercase tracking-tight leading-none mb-2">
+                                {employee.full_name}
+                            </h2>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold tracking-widest uppercase">
+                                    {employee.employee_code}
+                                </span>
+                                <span className="text-emerald-100/60 text-xs font-medium">• Employee Record</span>
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">

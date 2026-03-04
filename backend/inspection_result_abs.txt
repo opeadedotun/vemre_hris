@@ -1,0 +1,54 @@
+Current Working Directory: C:\Users\USER\Documents\Projects\vemrehr\backend
+DB Settings: {'ENGINE': 'django.db.backends.sqlite3', 'NAME': WindowsPath('C:/Users/USER/Documents/Projects/vemrehr/backend/db.sqlite3'), 'ATOMIC_REQUESTS': False, 'AUTOCOMMIT': True, 'CONN_MAX_AGE': 0, 'CONN_HEALTH_CHECKS': False, 'OPTIONS': {}, 'TIME_ZONE': None, 'USER': '', 'PASSWORD': '', 'HOST': '', 'PORT': '', 'TEST': {'CHARSET': None, 'COLLATION': None, 'MIGRATE': True, 'MIRROR': None, 'NAME': None}}
+api_salarystructure columns:
+  - id (INTEGER)
+  - basic_salary (decimal)
+  - other_allowances (decimal)
+  - late_deduction_rate (decimal)
+  - absent_deduction_rate (decimal)
+  - job_role_id (bigint)
+  - has_nhf (bool)
+  - has_pension (bool)
+  - manual_tax_amount (decimal)
+  - use_manual_tax (bool)
+
+All tables:
+  - api_aiquerylog
+  - api_appraisal
+  - api_attendancelog
+  - api_attendancemonthlysummary
+  - api_attendancesummary
+  - api_attendanceupload
+  - api_auditlog
+  - api_branch
+  - api_channel
+  - api_channelmember
+  - api_department
+  - api_disciplinaryaction
+  - api_employee
+  - api_employeedocument
+  - api_employeekpi
+  - api_employeeschedule
+  - api_expense
+  - api_expensecategory
+  - api_hrticket
+  - api_jobrole
+  - api_knowledgearticle
+  - api_knowledgecategory
+  - api_knowledgeversion
+  - api_kpitemplate
+  - api_kpitemplateitem
+  - api_leaverequest
+  - api_leavetype
+  - api_message
+  - api_onboardingguide
+  - api_onboardingprogress
+  - api_payrollrecord
+  - api_payrollrun
+  - api_performancesummary
+  - api_resignation
+  - api_salarystructure
+  - api_ticketmessage
+  - api_user
+  - api_user_groups
+  - api_user_user_permissions

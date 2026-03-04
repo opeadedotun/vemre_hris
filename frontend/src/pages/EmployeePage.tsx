@@ -15,9 +15,13 @@ import {
     Filter,
     X,
     Clock,
-    AlertTriangle
+    AlertTriangle,
+    FileText,
+    MessageSquare
 } from 'lucide-react';
 import EmployeeModal from '../components/EmployeeModal';
+import DocumentsTab from '../components/DocumentsTab';
+import HelpdeskTab from '../components/HelpdeskTab';
 
 interface Employee {
     id: number;
@@ -44,13 +48,13 @@ const EmployeePage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | undefined>();
-    const [activeTab, setActiveTab] = useState<'profile' | 'attendance'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'attendance' | 'documents' | 'tickets'>('profile');
     const [attendanceData, setAttendanceData] = useState<any[]>([]);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
 
     const fetchEmployees = async () => {
         try {
-            const response = await api.get('/v1/employees/');
+            const response = await api.get('/employees/');
             setEmployees(response.data);
         } catch (error) {
             console.error('Error fetching employees:', error);
@@ -76,7 +80,7 @@ const EmployeePage: React.FC = () => {
         // Fetch attendance data
         setLoadingAttendance(true);
         try {
-            const res = await api.get(`/v1/attendance-monthly-summaries/?employee=${employee.id}`);
+            const res = await api.get(`/attendance-monthly-summaries/?employee=${employee.id}`);
             setAttendanceData(res.data);
         } catch (err) {
             console.error('Failed to fetch attendance data');
@@ -93,7 +97,7 @@ const EmployeePage: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (window.confirm('Are you sure you want to PERMANENTLY delete this employee? This action cannot be undone.')) {
             try {
-                await api.delete(`/v1/employees/${id}/`);
+                await api.delete(`/employees/${id}/`);
                 fetchEmployees();
                 setIsDetailOpen(false);
                 setIsModalOpen(false);
@@ -107,7 +111,7 @@ const EmployeePage: React.FC = () => {
     const handleDeactivate = async (id: number, active: boolean) => {
         if (window.confirm(`Are you sure you want to ${active ? 'deactivate' : 'activate'} this employee?`)) {
             try {
-                await api.patch(`/v1/employees/${id}/`, { is_active: !active });
+                await api.patch(`/employees/${id}/`, { is_active: !active });
                 fetchEmployees();
             } catch (error) {
                 alert('Error updating employee status.');
@@ -124,7 +128,7 @@ const EmployeePage: React.FC = () => {
 
         setLoading(true);
         try {
-            await api.post('/v1/employees/import_csv/', formData, {
+            await api.post('/employees/import_csv/', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             fetchEmployees();
@@ -310,8 +314,8 @@ const EmployeePage: React.FC = () => {
                                 <button
                                     onClick={() => setActiveTab('profile')}
                                     className={`px-4 py-2 font-bold text-sm transition-all border-b-2 ${activeTab === 'profile'
-                                            ? 'border-primary-600 text-primary-600'
-                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        ? 'border-primary-600 text-primary-600'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
                                         }`}
                                 >
                                     Profile
@@ -319,12 +323,32 @@ const EmployeePage: React.FC = () => {
                                 <button
                                     onClick={() => setActiveTab('attendance')}
                                     className={`px-4 py-2 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'attendance'
-                                            ? 'border-primary-600 text-primary-600'
-                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        ? 'border-primary-600 text-primary-600'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
                                         }`}
                                 >
                                     <Clock size={16} />
                                     Attendance
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('documents')}
+                                    className={`px-4 py-2 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'documents'
+                                        ? 'border-primary-600 text-primary-600'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                >
+                                    <FileText size={16} />
+                                    Documents
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('tickets')}
+                                    className={`px-4 py-2 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'tickets'
+                                        ? 'border-primary-600 text-primary-600'
+                                        : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                >
+                                    <MessageSquare size={16} />
+                                    Tickets
                                 </button>
                             </div>
 
@@ -394,8 +418,8 @@ const EmployeePage: React.FC = () => {
                                                             <p className="text-xs text-slate-500">Processed: {record.processed_at ? new Date(record.processed_at).toLocaleDateString() : 'Pending'}</p>
                                                         </div>
                                                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${record.is_processed
-                                                                ? 'bg-green-100 text-green-700'
-                                                                : 'bg-amber-100 text-amber-700'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : 'bg-amber-100 text-amber-700'
                                                             }`}>
                                                             {record.is_processed ? 'Processed' : 'Pending'}
                                                         </span>
@@ -432,6 +456,16 @@ const EmployeePage: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
+                            )}
+
+                            {/* Documents Tab */}
+                            {activeTab === 'documents' && (
+                                <DocumentsTab employeeId={selectedEmployee.id} />
+                            )}
+
+                            {/* Helpdesk Tab */}
+                            {activeTab === 'tickets' && (
+                                <HelpdeskTab employeeId={selectedEmployee.id} />
                             )}
 
                             <div className="mt-8 flex gap-4">

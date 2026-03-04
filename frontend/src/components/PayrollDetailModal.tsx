@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { X, Printer, Download, CreditCard, User, Building2, Briefcase, Calendar } from 'lucide-react';
+import { X, Printer, Download, CreditCard, User, Building2, Briefcase, Calendar, Mail, Loader2 } from 'lucide-react';
 
 interface PayrollRecord {
     id: number;
@@ -9,15 +9,13 @@ interface PayrollRecord {
     department_name: string;
     passport: string | null;
     basic_salary: string;
-    housing_allowance: string;
-    transport_allowance: string;
-    medical_allowance: string;
-    utility_allowance: string;
     other_allowances: string;
     total_allowances: string;
     late_deductions: string;
     absent_deductions: string;
     attendance_deduction: string;
+    pension_deduction: string;
+    nhf_deduction: string;
     tax_deduction: string;
     net_salary: string;
 }
@@ -27,9 +25,11 @@ interface Props {
     onClose: () => void;
     record: PayrollRecord | null;
     month: string;
+    onEmail: (id: number) => void;
+    emailLoading: boolean;
 }
 
-const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month }) => {
+const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month, onEmail, emailLoading }) => {
     if (!isOpen || !record) return null;
 
     const fmt = (val: string | number) => {
@@ -51,7 +51,9 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month })
         element.click();
     };
 
-    const totalDeductions = parseFloat(record.late_deductions) + parseFloat(record.absent_deductions) + parseFloat(record.tax_deduction);
+    const totalDeductions = parseFloat(record.late_deductions) + parseFloat(record.absent_deductions) +
+        parseFloat(record.tax_deduction) + parseFloat(record.pension_deduction) +
+        parseFloat(record.nhf_deduction) + parseFloat(record.attendance_deduction);
     const grossSalary = parseFloat(record.basic_salary) + parseFloat(record.total_allowances);
 
     return (
@@ -66,6 +68,14 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month })
                     <div className="flex items-center gap-2">
                         <button onClick={handlePrint} className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Print Slip">
                             <Printer size={20} />
+                        </button>
+                        <button
+                            onClick={() => onEmail(record.id)}
+                            disabled={emailLoading}
+                            className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Email Payslip"
+                        >
+                            {emailLoading ? <Loader2 size={20} className="animate-spin" /> : <Mail size={20} />}
                         </button>
                         <button onClick={handleDownload} className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Download Data">
                             <Download size={20} />
@@ -129,22 +139,6 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month })
                                     <span>₦{fmt(record.basic_salary)}</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Housing Allowance</span>
-                                    <span>₦{fmt(record.housing_allowance)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Transport Allowance</span>
-                                    <span>₦{fmt(record.transport_allowance)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Medical Allowance</span>
-                                    <span>₦{fmt(record.medical_allowance)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Utility Allowance</span>
-                                    <span>₦{fmt(record.utility_allowance)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
                                     <span>Other Allowances</span>
                                     <span>₦{fmt(record.other_allowances)}</span>
                                 </div>
@@ -159,18 +153,42 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month })
                         <div className="space-y-4">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-50 pb-2">Deductions</h4>
                             <div className="space-y-3">
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Lateness Deductions</span>
-                                    <span className="text-red-500">- ₦{fmt(record.late_deductions)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>Absence Deductions</span>
-                                    <span className="text-red-500">- ₦{fmt(record.absent_deductions)}</span>
-                                </div>
-                                <div className="flex justify-between items-center text-sm text-slate-500">
-                                    <span>PAYE Tax (NTA 2025)</span>
-                                    <span className="text-orange-600 font-bold">- ₦{fmt(record.tax_deduction)}</span>
-                                </div>
+                                {parseFloat(record.late_deductions) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>Lateness Deductions</span>
+                                        <span className="text-red-500">- ₦{fmt(record.late_deductions)}</span>
+                                    </div>
+                                )}
+                                {parseFloat(record.absent_deductions) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>Absence Deductions</span>
+                                        <span className="text-red-500">- ₦{fmt(record.absent_deductions)}</span>
+                                    </div>
+                                )}
+                                {parseFloat(record.pension_deduction) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>Pension (8%)</span>
+                                        <span className="text-red-500">- ₦{fmt(record.pension_deduction)}</span>
+                                    </div>
+                                )}
+                                {parseFloat(record.nhf_deduction) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>NHF (2.5%)</span>
+                                        <span className="text-red-500">- ₦{fmt(record.nhf_deduction)}</span>
+                                    </div>
+                                )}
+                                {parseFloat(record.tax_deduction) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>PAYE Tax</span>
+                                        <span className="text-orange-600 font-bold">- ₦{fmt(record.tax_deduction)}</span>
+                                    </div>
+                                )}
+                                {parseFloat(record.attendance_deduction) > 0 && (
+                                    <div className="flex justify-between items-center text-sm text-slate-500">
+                                        <span>Disciplinary Deduction</span>
+                                        <span className="text-red-500 font-bold">- ₦{fmt(record.attendance_deduction)}</span>
+                                    </div>
+                                )}
                                 <div className="pt-3 border-t border-slate-50 flex justify-between items-center text-sm font-bold text-slate-600">
                                     <span>Total Deductions</span>
                                     <span className="text-red-600">₦{fmt(totalDeductions)}</span>

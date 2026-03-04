@@ -1,0 +1,59 @@
+Starting Migration Debug
+
+--- Running makemigrations api ---
+STDOUT:
+No changes detected in app 'api'
+
+STDERR:
+
+
+--- Running migrate api ---
+STDOUT:
+[36;1mOperations to perform:[0m
+[1m  Apply all migrations: [0mapi
+[36;1mRunning migrations:[0m
+  No migrations to apply.
+
+STDERR:
+
+
+--- Checking Table Existence ---
+  - api_aiquerylog
+  - api_appraisal
+  - api_attendancelog
+  - api_attendancemonthlysummary
+  - api_attendancesummary
+  - api_attendanceupload
+  - api_auditlog
+  - api_branch
+  - api_channel
+  - api_channelmember
+  - api_department
+  - api_disciplinaryaction
+  - api_employee
+  - api_employeedocument
+  - api_employeekpi
+  - api_employeeschedule
+  - api_expense
+  - api_expensecategory
+  - api_hrticket
+  - api_jobrole
+  - api_knowledgearticle
+  - api_knowledgecategory
+  - api_knowledgeversion
+  - api_kpitemplate
+  - api_kpitemplateitem
+  - api_leaverequest
+  - api_leavetype
+  - api_message
+  - api_onboardingguide
+  - api_onboardingprogress
+  - api_payrollrecord
+  - api_payrollrun
+  - api_performancesummary
+  - api_resignation
+  - api_salarystructure
+  - api_ticketmessage
+  - api_user
+  - api_user_groups
+  - api_user_user_permissions

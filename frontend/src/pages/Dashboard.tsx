@@ -28,6 +28,7 @@ import {
     ArcElement
 } from 'chart.js';
 import { Bar, Pie } from 'react-chartjs-2';
+import ESSDashboard from './ESSDashboard';
 
 ChartJS.register(
     CategoryScale,
@@ -48,8 +49,12 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         const fetchStats = async () => {
+            if (user?.role !== 'ADMIN') {
+                setLoading(false);
+                return;
+            }
             try {
-                const response = await api.get('/v1/users/stats/');
+                const response = await api.get('/users/stats/');
                 setStats(response.data);
             } catch (error) {
                 console.error('Error fetching stats:', error);
@@ -58,7 +63,7 @@ const Dashboard: React.FC = () => {
             }
         };
         fetchStats();
-    }, []);
+    }, [user?.role]);
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
@@ -66,6 +71,10 @@ const Dashboard: React.FC = () => {
             <span className="font-medium">Aggregating enterprise analytics...</span>
         </div>
     );
+
+    if (user?.role !== 'ADMIN') {
+        return <ESSDashboard />;
+    }
 
     const barData = {
         labels: stats?.top_performers.map((p: any) => p.name) || [],
@@ -105,7 +114,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Enterprise Overview</h1>
-                    <p className="text-slate-500 mt-1 font-medium">Hello, {user?.username} • Access Level: {user?.role}</p>
+                    <p className="text-slate-500 mt-1 font-medium">Hello, {(user as any)?.first_name || user?.username} • Access Level: {user?.role}</p>
                 </div>
                 <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 flex items-center gap-2">
                     <Calendar size={18} className="text-slate-400" />
@@ -158,8 +167,8 @@ const Dashboard: React.FC = () => {
 
             {/* Role-Specific Metrics */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Financial Overview (Finance & Admin) */}
-                {(user?.role === 'ADMIN' || user?.role === 'FINANCE') && (
+                {/* Financial Overview (Admin Only) */}
+                {user?.role === 'ADMIN' && (
                     <div className="lg:col-span-1 bg-primary-900 text-white rounded-2xl p-8 flex flex-col justify-between shadow-xl shadow-primary-900/20">
                         <div>
                             <div className="flex justify-between items-start mb-6">
@@ -183,7 +192,7 @@ const Dashboard: React.FC = () => {
                     </div>
                 )}
 
-                <div className={`${(user?.role === 'ADMIN' || user?.role === 'FINANCE') ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white p-8 rounded-2xl shadow-sm border border-slate-100`}>
+                <div className={`${user?.role === 'ADMIN' ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white p-8 rounded-2xl shadow-sm border border-slate-100`}>
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <Trophy size={20} className="text-amber-500" />
                         Monthly Top Performers

@@ -20,7 +20,7 @@ const DepartmentPage: React.FC = () => {
 
     const fetchDepartments = async () => {
         try {
-            const response = await api.get('/v1/departments/');
+            const response = await api.get('/departments/');
             setDepartments(response.data);
         } catch (error) {
             console.error('Error fetching departments:', error);
@@ -46,7 +46,7 @@ const DepartmentPage: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (window.confirm('Are you sure you want to delete this department?')) {
             try {
-                await api.delete(`/v1/departments/${id}/`);
+                await api.delete(`/departments/${id}/`);
                 fetchDepartments();
             } catch (error) {
                 alert('Error deleting department. It may have employees assigned to it.');

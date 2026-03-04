@@ -18,6 +18,7 @@ import UserModal from '../components/UserModal';
 interface UserRecord {
     id: number;
     username: string;
+    first_name: string;
     email: string;
     role: string;
     is_active: boolean;
@@ -31,7 +32,7 @@ const UserManagementPage: React.FC = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get('/v1/users/');
+            const response = await api.get('/users/');
             setUsers(response.data);
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -58,7 +59,7 @@ const UserManagementPage: React.FC = () => {
         const styles: any = {
             'ADMIN': 'bg-purple-100 text-purple-700 border-purple-200',
             'HR': 'bg-blue-100 text-blue-700 border-blue-200',
-            'FINANCE': 'bg-amber-100 text-amber-700 border-amber-200',
+            'STAFF': 'bg-teal-100 text-teal-700 border-teal-200',
             'MANAGER': 'bg-slate-100 text-slate-700 border-slate-200',
         };
         return (
@@ -110,7 +111,7 @@ const UserManagementPage: React.FC = () => {
                                                     {u.username.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-slate-800">{u.username}</p>
+                                                    <p className="font-bold text-slate-800">{u.first_name ? `${u.first_name} (${u.username})` : u.username}</p>
                                                     <p className="text-xs text-slate-500">{u.email}</p>
                                                 </div>
                                             </div>

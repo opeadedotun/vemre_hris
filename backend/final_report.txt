@@ -1,0 +1,69 @@
+=== HRIS Framework Verification Report ===
+
+Total Job Roles: 10
+- Human Resources Manager: Template 'Human Resources Manager Template' (6 items), Total Weight: 100.00%
+- Branding/Marketing Manager: Template 'Branding/Marketing Manager Template' (6 items), Total Weight: 100.00%
+- Field Agent: Template 'Field Agent Template' (6 items), Total Weight: 100.00%
+- Accountant: Template 'Accountant Template' (6 items), Total Weight: 100.00%
+- Receptionist/Customer Service: Template 'Receptionist/Customer Service Template' (6 items), Total Weight: 100.00%
+- Cleaner: Template 'Cleaner Template' (6 items), Total Weight: 100.00%
+- Marketing Specialist: NO ACTIVE TEMPLATE
+- Operations Manager: Template 'Operations' (7 items), Total Weight: 100.00%
+- Receptionist: NO ACTIVE TEMPLATE
+- Dispatch Rider: Template 'Dispatch Rider KPI Template' (6 items), Total Weight: 100.00%
+
+Total Employees: 13
+Processing Opeyemi Adedotun (VAE-0001)...
+  Role: Human Resources Manager
+  KPIs assigned for 2026-02: 0
+  Actual KPIs in DB: 42, Combined Weight: 100.00%
+Processing Kafayat AbdulRasaq (VAE-0002)...
+  Role: Branding/Marketing Manager
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Adisa Hassan (VAE-0003)...
+  Role: Operations Manager
+  KPIs assigned for 2026-02: 7
+  Actual KPIs in DB: 7, Combined Weight: 100.00%
+Processing Samuel Olalakin (VAE-0004)...
+  Role: Accountant
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Christianah Babatunde (VAE-0005)...
+  Role: Receptionist/Customer Service
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Faith Oyewole (VAE-0006)...
+  Role: Receptionist/Customer Service
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Timothy Adegoke (VAE-0007)...
+  Role: Field Agent
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Naomi Kehinde (VAE-0008)...
+  Role: Field Agent
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Andrew Aigboka (VAE-0009)...
+  Role: Dispatch Rider
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing John Ojo (VAE-0010)...
+  Role: Field Agent
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Bashira Bashir (VAE-0011)...
+  Role: Field Agent
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Taiye Babatunde (VAE-0012)...
+  Role: Cleaner
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+Processing Christianah Ogundipe (VAE-0013)...
+  Role: Field Agent
+  KPIs assigned for 2026-02: 6
+  Actual KPIs in DB: 6, Combined Weight: 100.00%
+
+=== VERIFICATION END ===

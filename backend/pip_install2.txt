@@ -1,0 +1,8 @@
+Using pip 24.0 from C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\pip (python 3.11)
+Collecting pandas
+  Obtaining dependency information for pandas from https://files.pythonhosted.org/packages/1f/67/af63f83cd6ca603a00fe8530c10a60f0879265b8be00b5930e8e78c5b30b/pandas-3.0.1-cp311-cp311-win_amd64.whl.metadata
+  Downloading pandas-3.0.1-cp311-cp311-win_amd64.whl.metadata (19 kB)
+ERROR: Operation cancelled by user
+
+[notice] A new release of pip is available: 24.0 -> 26.0.1
+[notice] To update, run: C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Scripts\python.exe -m pip install --upgrade pip

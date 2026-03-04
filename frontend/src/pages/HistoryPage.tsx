@@ -28,7 +28,7 @@ const HistoryPage: React.FC = () => {
 
     const fetchHistory = async () => {
         try {
-            const response = await api.get('/v1/appraisals/');
+            const response = await api.get('/appraisals/');
             setAppraisals(response.data);
         } catch (error) {
             console.error('Error fetching appraisal history:', error);

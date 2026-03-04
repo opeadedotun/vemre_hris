@@ -1,0 +1,30 @@
+Starting script...
+Python path: C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Scripts\python.exe
+Setting up django...
+Django setup successful.
+Imports successful.
+User count: 2
+ERROR: Invalid field name(s) for model Employee: 'first_name', 'user'.
+Traceback (most recent call last):
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\django\db\models\query.py", line 948, in get_or_create
+    return self.get(**kwargs), False
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\django\db\models\query.py", line 635, in get
+    raise self.model.DoesNotExist(
+api.models.Employee.DoesNotExist: Employee matching query does not exist.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\seed_traced.py", line 29, in <module>
+    emp, _ = Employee.objects.get_or_create(email=u.email, defaults={'user': u, 'first_name': u.username, 'job_role': role})
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\django\db\models\manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\django\db\models\query.py", line 950, in get_or_create
+    params = self._extract_model_params(defaults, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\USER\Documents\Projects\vemrehr\backend\venv\Lib\site-packages\django\db\models\query.py", line 1048, in _extract_model_params
+    raise exceptions.FieldError(
+django.core.exceptions.FieldError: Invalid field name(s) for model Employee: 'first_name', 'user'.

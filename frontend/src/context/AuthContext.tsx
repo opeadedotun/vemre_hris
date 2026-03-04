@@ -6,7 +6,7 @@ interface User {
     id: number;
     username: string;
     email: string;
-    role: 'ADMIN' | 'HR' | 'MANAGER' | 'FINANCE';
+    role: 'ADMIN' | 'HR' | 'MANAGER' | 'ACCOUNTANT' | 'STAFF';
 }
 
 interface AuthContextType {
@@ -24,7 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const fetchProfile = async () => {
         try {
-            const response = await api.get('/v1/users/me/');
+            const response = await api.get('/users/me/');
             setUser(response.data);
         } catch (error) {
             setUser(null);

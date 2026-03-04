@@ -28,7 +28,7 @@ const KPIDefinitionPage: React.FC = () => {
 
     const fetchTemplates = async () => {
         try {
-            const response = await api.get('/v1/kpi-templates/');
+            const response = await api.get('/kpi-templates/');
             setTemplates(response.data);
         } catch (error) {
             console.error('Error fetching templates:', error);
@@ -54,7 +54,7 @@ const KPIDefinitionPage: React.FC = () => {
     const handleDelete = async (id: number) => {
         if (window.confirm('Are you sure you want to delete this KPI template? This may affect existing performance entries.')) {
             try {
-                await api.delete(`/v1/kpi-templates/${id}/`);
+                await api.delete(`/kpi-templates/${id}/`);
                 fetchTemplates();
             } catch (error) {
                 alert('Error deleting template.');

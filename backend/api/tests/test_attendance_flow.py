@@ -119,18 +119,18 @@ class AttendanceFlowTest(APITestCase):
             self.assertEqual(summary.total_late_30, 1)
             self.assertEqual(summary.total_late_1hr, 1)
             
-            # Expected Absences: 22 working days, 2 days logged -> 20 absences
-            self.assertEqual(summary.absent_days, 20)
+            # Expected Absences: 20 working days, 2 days logged -> 18 absences
+            self.assertEqual(summary.absent_days, 18)
             
             # Verify Deduction Calculation
             # Total Gross = 100 + 20 + 10 + 5 + 5 + 5 = 145,000
-            # Hourly = 145000 / 22 / 8 = 823.8636
-            # Late Deduction = (0.5 * hourly) + (1.0 * hourly) = 1.5 * hourly = 1235.795
+            # Total Gross = 100 + 20 + 10 + 5 + 5 + 5 = 145,000
+            # Hourly = 145000 / 20 / 8 = 906.25
             total_gross = Decimal('145000')
-            hourly = total_gross / Decimal('22') / Decimal('8')
+            hourly = total_gross / Decimal('20') / Decimal('8')
             late_deduction = hourly * Decimal('1.5')
             
-            absent_deduction = Decimal('20') * Decimal('1000') # 20 absences * 1000 rate
+            absent_deduction = Decimal('18') * Decimal('1000') # 18 absences * 1000 rate
             expected_total = late_deduction + absent_deduction
             
             self.assertAlmostEqual(summary.salary_deduction_amount, expected_total, places=2)

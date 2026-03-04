@@ -1,4 +1,4 @@
-from .models import EmployeeKPI, KPITemplate, KPITemplateItem
+from ..models import EmployeeKPI, KPITemplate, KPITemplateItem
 from decimal import Decimal
 
 def assign_role_kpis(employee, month):

@@ -1,0 +1,3 @@
+System Users:
+  - ID: 5, Username: superadmin, Role: ADMIN, IsSuperuser: True, IsStaff: True
+  - ID: 7, Username: opeyemi, Role: ADMIN, IsSuperuser: True, IsStaff: True

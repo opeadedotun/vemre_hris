@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { Landmark, Briefcase, Plus, Save, Loader2, Info } from 'lucide-react';
+import { Landmark, Briefcase, Save, Loader2, Info, Clock, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const SalaryStructurePage: React.FC = () => {
     const [roles, setRoles] = useState<any[]>([]);
@@ -12,13 +12,11 @@ const SalaryStructurePage: React.FC = () => {
     const [formData, setFormData] = useState({
         job_role: '',
         basic_salary: 0,
-        housing_allowance: 0,
-        transport_allowance: 0,
-        medical_allowance: 0,
-        utility_allowance: 0,
         other_allowances: 0,
-        late_deduction_rate: 500,
-        absent_deduction_rate: 1000
+        use_manual_tax: false,
+        manual_tax_amount: 0,
+        has_pension: true,
+        has_nhf: true,
     });
     const [jobRoleData, setJobRoleData] = useState({
         shift_start: '',
@@ -30,8 +28,8 @@ const SalaryStructurePage: React.FC = () => {
         setLoading(true);
         try {
             const [rolesRes, salaryRes] = await Promise.all([
-                api.get('/v1/job-roles/'),
-                api.get('/v1/salary-structures/')
+                api.get('/job-roles/'),
+                api.get('/salary-structures/')
             ]);
             setRoles(rolesRes.data);
             setSalaries(salaryRes.data);
@@ -53,25 +51,21 @@ const SalaryStructurePage: React.FC = () => {
             setFormData({
                 job_role: existing.job_role,
                 basic_salary: Number(existing.basic_salary),
-                housing_allowance: Number(existing.housing_allowance || 0),
-                transport_allowance: Number(existing.transport_allowance || 0),
-                medical_allowance: Number(existing.medical_allowance || 0),
-                utility_allowance: Number(existing.utility_allowance || 0),
                 other_allowances: Number(existing.other_allowances),
-                late_deduction_rate: Number(existing.late_deduction_rate),
-                absent_deduction_rate: Number(existing.absent_deduction_rate)
+                use_manual_tax: existing.use_manual_tax ?? false,
+                manual_tax_amount: Number(existing.manual_tax_amount) || 0,
+                has_pension: existing.has_pension ?? true,
+                has_nhf: existing.has_nhf ?? true,
             });
         } else {
             setFormData({
                 job_role: role.id,
                 basic_salary: 0,
-                housing_allowance: 0,
-                transport_allowance: 0,
-                medical_allowance: 0,
-                utility_allowance: 0,
                 other_allowances: 0,
-                late_deduction_rate: 500,
-                absent_deduction_rate: 1000
+                use_manual_tax: false,
+                manual_tax_amount: 0,
+                has_pension: true,
+                has_nhf: true,
             });
         }
         setJobRoleData({
@@ -85,15 +79,16 @@ const SalaryStructurePage: React.FC = () => {
         e.preventDefault();
         setSaving(true);
         try {
+            const payload = { ...formData };
             const existing = salaries.find(s => s.job_role === formData.job_role);
             if (existing) {
-                await api.put(`/v1/salary-structures/${existing.id}/`, formData);
+                await api.put(`/salary-structures/${existing.id}/`, payload);
             } else {
-                await api.post('/v1/salary-structures/', formData);
+                await api.post('/salary-structures/', payload);
             }
 
             // Also update Job Role shift data
-            await api.patch(`/v1/job-roles/${selectedRole.id}/`, jobRoleData);
+            await api.patch(`/job-roles/${selectedRole.id}/`, jobRoleData);
 
             alert('Salary structure and shift settings saved successfully');
             fetchData();
@@ -104,8 +99,27 @@ const SalaryStructurePage: React.FC = () => {
         }
     };
 
-    const grossTotal = formData.basic_salary + formData.housing_allowance + formData.transport_allowance +
-        formData.medical_allowance + formData.utility_allowance + formData.other_allowances;
+    const grossTotal = formData.basic_salary + formData.other_allowances;
+    // Calculate estimated pension & NHF deductions for display
+    const estPension = formData.has_pension ? formData.basic_salary * 0.08 : 0;
+    const estNhf = formData.has_nhf ? formData.basic_salary * 0.025 : 0;
+
+    const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) => void }> = ({ label, value, onChange }) => (
+        <div className="flex items-center justify-between py-2">
+            <span className="text-sm font-medium text-slate-700">{label}</span>
+            <button
+                type="button"
+                onClick={() => onChange(!value)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${value
+                    ? 'bg-green-100 text-green-700 border border-green-200'
+                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                    }`}
+            >
+                {value ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                {value ? 'Enabled' : 'Disabled'}
+            </button>
+        </div>
+    );
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-slate-900">
@@ -165,56 +179,59 @@ const SalaryStructurePage: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Allowances Grid */}
+                            {/* Allowances */}
                             <div className="p-4 bg-green-50 rounded-xl border border-green-100">
                                 <h3 className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-4">Monthly Allowances</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Housing Allowance</label>
-                                        <input
-                                            type="number"
-                                            value={formData.housing_allowance}
-                                            onChange={(e) => setFormData({ ...formData, housing_allowance: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transport Allowance</label>
-                                        <input
-                                            type="number"
-                                            value={formData.transport_allowance}
-                                            onChange={(e) => setFormData({ ...formData, transport_allowance: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Medical Allowance</label>
-                                        <input
-                                            type="number"
-                                            value={formData.medical_allowance}
-                                            onChange={(e) => setFormData({ ...formData, medical_allowance: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Utility Allowance</label>
-                                        <input
-                                            type="number"
-                                            value={formData.utility_allowance}
-                                            onChange={(e) => setFormData({ ...formData, utility_allowance: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Other Allowances</label>
-                                        <input
-                                            type="number"
-                                            value={formData.other_allowances}
-                                            onChange={(e) => setFormData({ ...formData, other_allowances: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
-                                        />
-                                    </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Other Allowances</label>
+                                    <input
+                                        type="number"
+                                        value={formData.other_allowances}
+                                        onChange={(e) => setFormData({ ...formData, other_allowances: Number(e.target.value) || 0 })}
+                                        className="w-full px-4 py-2 bg-white border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                                    />
                                 </div>
+                            </div>
+
+                            {/* Statutory Deduction Flags */}
+                            <div className="p-4 bg-orange-50 rounded-xl border border-orange-100">
+                                <h3 className="text-[10px] font-bold text-orange-600 uppercase tracking-widest mb-3">Statutory Deductions</h3>
+                                <div className="divide-y divide-orange-100">
+                                    <Toggle
+                                        label={`Pension (8% of Basic ≈ ₦${estPension.toLocaleString('en-NG', { maximumFractionDigits: 0 })})`}
+                                        value={formData.has_pension}
+                                        onChange={(v) => setFormData({ ...formData, has_pension: v })}
+                                    />
+                                    <Toggle
+                                        label={`NHF (2.5% of Basic ≈ ₦${estNhf.toLocaleString('en-NG', { maximumFractionDigits: 0 })})`}
+                                        value={formData.has_nhf}
+                                        onChange={(v) => setFormData({ ...formData, has_nhf: v })}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Tax Configuration */}
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                <h3 className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Income Tax</h3>
+                                <Toggle
+                                    label="Use Manual Tax Amount (overrides auto PAYE)"
+                                    value={formData.use_manual_tax}
+                                    onChange={(v) => setFormData({ ...formData, use_manual_tax: v })}
+                                />
+                                {formData.use_manual_tax && (
+                                    <div className="mt-3 space-y-2">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Fixed Monthly Tax Amount (₦)</label>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={formData.manual_tax_amount}
+                                            onChange={(e) => setFormData({ ...formData, manual_tax_amount: Number(e.target.value) || 0 })}
+                                            className="w-full px-4 py-2 bg-white border border-blue-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                            placeholder="e.g. 15000"
+                                        />
+                                        <p className="text-[10px] text-blue-500">This amount will be deducted directly from the employee's pay each month in place of the computed PAYE tax.</p>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Shift Configuration */}
@@ -256,29 +273,38 @@ const SalaryStructurePage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Deduction Rules */}
-                            <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
-                                <h3 className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-4">Deduction Rules (Per Day)</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lateness Penalty</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            value={formData.late_deduction_rate}
-                                            onChange={(e) => setFormData({ ...formData, late_deduction_rate: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-amber-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                                        />
+                            {/* Deduction Rules Information */}
+                            <div className="p-6 bg-slate-900 rounded-[2rem] border border-slate-800 text-white relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary-600/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl"></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-3 bg-primary-600/20 text-primary-400 rounded-2xl border border-primary-500/20">
+                                            <Info size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Payroll Policy 2026</h3>
+                                            <p className="text-lg font-black text-white">Lateness Deduction Logic</p>
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Absence Penalty</label>
-                                        <input
-                                            type="number"
-                                            required
-                                            value={formData.absent_deduction_rate}
-                                            onChange={(e) => setFormData({ ...formData, absent_deduction_rate: Number(e.target.value) || 0 })}
-                                            className="w-full px-4 py-2 bg-white border border-amber-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500"
-                                        />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                            <p className="text-[10px] font-black text-primary-400 uppercase tracking-widest mb-2">Tier 1 (Mild)</p>
+                                            <p className="text-sm font-bold text-slate-100 mb-1">6 - 30 Minutes Late</p>
+                                            <p className="text-[10px] text-slate-500 font-medium">0.5 Hour pay deduction</p>
+                                        </div>
+                                        <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                                            <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-2">Tier 2 (Severe)</p>
+                                            <p className="text-sm font-bold text-slate-100 mb-1">Over 30 Minutes Late</p>
+                                            <p className="text-[10px] text-slate-500 font-medium">1.0 Hour pay deduction</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex items-start gap-3 p-4 bg-primary-900/40 rounded-2xl border border-primary-800/50">
+                                        <Clock size={16} className="text-primary-400 shrink-0 mt-0.5" />
+                                        <p className="text-[10px] text-primary-200/70 leading-relaxed font-medium">
+                                            Deductions are calculated automatically based on the hourly rate derived from (Basic Salary / 20 working days / 8 hours). A 5-minute grace period is applied to all shift starts.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

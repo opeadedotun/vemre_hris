@@ -1,10 +1,18 @@
 from rest_framework import serializers
-from .models import User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, AttendanceLog, AttendanceSummary, SalaryStructure, PayrollRun, PayrollRecord, Branch
+from .models import (
+    User, Department, Employee, EmployeeKPI, PerformanceSummary, Appraisal, 
+    AuditLog, JobRole, KPITemplate, KPITemplateItem, AttendanceUpload, 
+    AttendanceLog, AttendanceSummary, AttendanceMonthlySummary, SalaryStructure, 
+    PayrollRun, PayrollRecord, Branch, ExpenseCategory, Expense, LeaveType, 
+    LeaveRequest, Resignation, EmployeeDocument, HRTicket, TicketMessage,
+    KnowledgeCategory, KnowledgeArticle, KnowledgeVersion, OnboardingGuide, OnboardingProgress,
+    AIQueryLog, Channel, ChannelMember, Message
+)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'password', 'role', 'is_active')
+        fields = ('id', 'username', 'email', 'password', 'role', 'is_active', 'first_name')
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -123,6 +131,13 @@ class AttendanceSummarySerializer(serializers.ModelSerializer):
         model = AttendanceSummary
         fields = '__all__'
 
+class AttendanceMonthlySummarySerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+
+    class Meta:
+        model = AttendanceMonthlySummary
+        fields = '__all__'
+
 class SalaryStructureSerializer(serializers.ModelSerializer):
     job_role_name = serializers.ReadOnlyField(source='job_role.name')
 
@@ -153,3 +168,174 @@ class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
         fields = '__all__'
+
+class ExpenseCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseCategory
+        fields = '__all__'
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    category_name = serializers.ReadOnlyField(source='category.name')
+    approved_by_name = serializers.ReadOnlyField(source='approved_by.username')
+    reimbursed_by_name = serializers.ReadOnlyField(source='reimbursed_by.username')
+
+    class Meta:
+        model = Expense
+        fields = '__all__'
+        read_only_fields = ('employee',)
+
+class LeaveTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeaveType
+        fields = '__all__'
+
+class LeaveRequestSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    leave_type_name = serializers.ReadOnlyField(source='leave_type.name')
+    approved_by_name = serializers.ReadOnlyField(source='approved_by.username')
+
+    class Meta:
+        model = LeaveRequest
+        fields = '__all__'
+
+class ResignationSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    approved_by_name = serializers.ReadOnlyField(source='approved_by.username')
+
+    class Meta:
+        model = Resignation
+        fields = '__all__'
+
+class EmployeeDocumentSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    uploaded_by_name = serializers.ReadOnlyField(source='uploaded_by.username')
+
+    class Meta:
+        model = EmployeeDocument
+        fields = '__all__'
+
+class TicketMessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.ReadOnlyField(source='sender.username')
+
+    class Meta:
+        model = TicketMessage
+        fields = '__all__'
+        read_only_fields = ('ticket', 'sender')
+
+class HRTicketSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    assigned_to_name = serializers.ReadOnlyField(source='assigned_to.username')
+    messages = TicketMessageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = HRTicket
+        fields = '__all__'
+
+class KnowledgeCategorySerializer(serializers.ModelSerializer):
+    department_name = serializers.ReadOnlyField(source='department.name')
+
+    class Meta:
+        model = KnowledgeCategory
+        fields = '__all__'
+
+class KnowledgeVersionSerializer(serializers.ModelSerializer):
+    edited_by_name = serializers.ReadOnlyField(source='edited_by.username')
+
+    class Meta:
+        model = KnowledgeVersion
+        fields = '__all__'
+
+class KnowledgeArticleSerializer(serializers.ModelSerializer):
+    category_name = serializers.ReadOnlyField(source='category.name')
+    created_by_name = serializers.ReadOnlyField(source='created_by.username')
+    versions = KnowledgeVersionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = KnowledgeArticle
+        fields = '__all__'
+        extra_kwargs = {
+            'slug': {'required': False, 'allow_blank': True}
+        }
+
+class OnboardingGuideSerializer(serializers.ModelSerializer):
+    job_role_name = serializers.ReadOnlyField(source='job_role.name')
+
+    class Meta:
+        model = OnboardingGuide
+        fields = '__all__'
+
+class OnboardingProgressSerializer(serializers.ModelSerializer):
+    employee_name = serializers.ReadOnlyField(source='employee.full_name')
+    guide_title = serializers.ReadOnlyField(source='guide.title')
+    guide_content = serializers.ReadOnlyField(source='guide.content')
+    checklist = serializers.ReadOnlyField(source='guide.checklist_json')
+
+    class Meta:
+        model = OnboardingProgress
+        fields = '__all__'
+
+class AIQueryLogSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = AIQueryLog
+        fields = '__all__'
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.ReadOnlyField(source='sender.username')
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Message
+        fields = '__all__'
+        read_only_fields = ('sender', 'is_edited', 'reactions', 'created_at', 'updated_at')
+
+    def get_file_url(self, obj):
+        if obj.file_attachment:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.file_attachment.url)
+            return obj.file_attachment.url
+        return None
+
+class ChannelMemberSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source='user.username')
+
+    class Meta:
+        model = ChannelMember
+        fields = '__all__'
+
+class ChannelSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.ReadOnlyField(source='created_by.username')
+    department_name = serializers.ReadOnlyField(source='department.name')
+    member_count = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Channel
+        fields = '__all__'
+        read_only_fields = ('created_by', 'created_at')
+
+    def get_member_count(self, obj):
+        return obj.members.count()
+
+    def get_unread_count(self, obj):
+        request = self.context.get('request')
+        if not request:
+            return 0
+        membership = obj.members.filter(user=request.user).first()
+        if not membership or not membership.last_read_at:
+            return obj.messages.count()
+        return obj.messages.filter(created_at__gt=membership.last_read_at).count()
+
+    def get_last_message(self, obj):
+        msg = obj.messages.order_by('-created_at').first()
+        if msg:
+            return {
+                'text': msg.message_text[:80],
+                'sender': msg.sender.username if msg.sender else 'System',
+                'created_at': msg.created_at.isoformat()
+            }
+        return None

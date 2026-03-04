@@ -56,7 +56,8 @@ def calculate_annual_tax(annual_gross: Decimal) -> Decimal:
 
 def calculate_monthly_tax(monthly_gross: Decimal) -> Decimal:
     """
-    Calculate monthly PAYE tax by annualizing, computing, then dividing by 12.
+    Calculate monthly PAYE tax with reliefs (Pension 8%, NHF 2.5%).
+    Consolidated Relief Allowance (CRA) is abolished in NTA 2025.
     
     Args:
         monthly_gross: Total monthly gross income
@@ -64,7 +65,19 @@ def calculate_monthly_tax(monthly_gross: Decimal) -> Decimal:
     Returns:
         Monthly tax deduction (Decimal)
     """
-    annual_gross = monthly_gross * 12
-    annual_tax = calculate_annual_tax(annual_gross)
+    # 1. Relief Deductions (before tax)
+    # Pension: 8% of Gross (Standard)
+    # NHF: 2.5% of Basic Salary (Simplified here as % of Gross if Basic not separate, 
+    # but in our system we have Basic. However, common practice often uses Gross for simplicity in many SMEs)
+    # For accuracy, let's use the Gross for now or assume a mix. 
+    # Let's subtract standard 8% Pension and 2.5% NHF from Gross to find Chargeable Income.
+    
+    pension = monthly_gross * Decimal('0.08')
+    nhf = monthly_gross * Decimal('0.025')
+    
+    chargeable_monthly = max(Decimal('0.00'), monthly_gross - pension - nhf)
+    
+    annual_chargeable = chargeable_monthly * 12
+    annual_tax = calculate_annual_tax(annual_chargeable)
     monthly_tax = annual_tax / 12
     return monthly_tax.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)

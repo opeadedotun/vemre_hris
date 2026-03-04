@@ -19,8 +19,9 @@ const LoginPage: React.FC = () => {
         setLoading(true);
 
         try {
-            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-            const response = await axios.post(`${baseURL}/auth/token/`, {
+            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+            const authBaseURL = baseURL.replace('/v1', '');
+            const response = await axios.post(`${authBaseURL}/auth/token/`, {
                 username,
                 password,
             });
