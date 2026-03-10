@@ -10,7 +10,7 @@ from .models import (
     SalaryStructure, PayrollRun, PayrollRecord, Branch, ExpenseCategory, Expense,
     LeaveType, LeaveRequest, Resignation, EmployeeDocument, HRTicket, TicketMessage,
     KnowledgeCategory, KnowledgeArticle, KnowledgeVersion, OnboardingGuide, OnboardingProgress,
-    AIQueryLog
+    AIQueryLog, Channel, ChannelMember, Message
 )
 from django.db.models import Q
 from .serializers import (
@@ -25,7 +25,8 @@ from .serializers import (
     LeaveRequestSerializer, ResignationSerializer, EmployeeDocumentSerializer,
     HRTicketSerializer, TicketMessageSerializer,
     KnowledgeCategorySerializer, KnowledgeArticleSerializer, KnowledgeVersionSerializer,
-    OnboardingGuideSerializer, OnboardingProgressSerializer, AIQueryLogSerializer
+    OnboardingGuideSerializer, OnboardingProgressSerializer, AIQueryLogSerializer,
+    ChannelSerializer, ChannelMemberSerializer, MessageSerializer, ChannelMemberDetailSerializer
 )
 from .services.attendance import AttendanceEngine
 from django.utils import timezone
@@ -36,14 +37,38 @@ from django.http import HttpResponse
 
 def recalculate_employee_summary(emp, month):
     """Recalculate monthly attendance summary and deductions for a single employee."""
-    logs = AttendanceLog.objects.filter(employee_code=emp.employee_code, date__startswith=month)
+    try:
+        year, month_int = map(int, month.split('-'))
+        logs = AttendanceLog.objects.filter(employee_code=emp.employee_code, date__year=year, date__month=month_int)
+    except:
+        return None
+
     if not logs.exists():
         # Clean up if no logs exist
         AttendanceMonthlySummary.objects.filter(employee=emp, month=month).delete()
-        return
+        return None
 
     engine = AttendanceEngine()
-    
+    expected_start = emp.job_role.shift_start if emp.job_role and emp.job_role.shift_start else time(8, 0)
+
+    # Normalize lateness for all logs in the month (handles missing/legacy data)
+    logs_to_update = []
+    for log in logs:
+        needs_update = False
+        if log.employee_id != emp.id:
+            log.employee = emp
+            needs_update = True
+        if log.check_in:
+            late_minutes, category = engine.classify_lateness(log.check_in, expected_start)
+            if log.late_minutes != late_minutes or log.late_category != category:
+                log.late_minutes = late_minutes
+                log.late_category = category
+                needs_update = True
+        if needs_update:
+            logs_to_update.append(log)
+    if logs_to_update:
+        AttendanceLog.objects.bulk_update(logs_to_update, ['late_minutes', 'late_category', 'employee'])
+
     # Counts
     present_days = logs.values('date').distinct().count()
     
@@ -565,15 +590,14 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
                     continue
                 
                 # Check for schedule/shift to calculate lateness
-                expected_start = None
-                if hasattr(emp, 'job_role') and emp.job_role and emp.job_role.shift_start:
-                    expected_start = emp.job_role.shift_start
-                
+                expected_start = emp.job_role.shift_start if emp.job_role and emp.job_role.shift_start else time(8, 0)
+
                 late_mins, late_category = engine.classify_lateness(row['check_in'], expected_start)
                 
                 logs.append(AttendanceLog(
                     upload=upload,
                     branch=branch,
+                    employee=emp,
                     employee_code=emp.employee_code,
                     date=row['date'],
                     check_in=row['check_in'],
@@ -584,7 +608,14 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
                 ))
             
             AttendanceLog.objects.bulk_create(logs)
-            
+
+            # Recalculate summaries for affected employees in the month
+            employee_ids = {log.employee_id for log in logs if log.employee_id}
+            for emp_id in employee_ids:
+                emp = Employee.objects.filter(id=emp_id).first()
+                if emp:
+                    recalculate_employee_summary(emp, month)
+
             return Response({"message": f"Successfully processed {len(logs)} logs for {branch.name}."}, status=status.HTTP_201_CREATED)
             
         except Exception as e:
@@ -616,9 +647,7 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
         ci = engine.parse_time(check_in)
         co = engine.parse_time(check_out) if check_out else None
 
-        expected_start = None
-        if emp.job_role and emp.job_role.shift_start:
-            expected_start = emp.job_role.shift_start
+        expected_start = emp.job_role.shift_start if emp.job_role and emp.job_role.shift_start else time(8, 0)
 
         late_mins, late_category = engine.classify_lateness(ci, expected_start)
 
@@ -628,6 +657,7 @@ class AttendanceUploadViewSet(viewsets.ModelViewSet):
             defaults={
                 'upload': None, # Explicitly null for manual entry
                 'branch': branch,
+                'employee': emp,
                 'check_in': ci,
                 'check_out': co,
                 'status': 'PRESENT',
@@ -785,6 +815,9 @@ class PayrollRunViewSet(viewsets.ModelViewSet):
         records = []
         
         for emp in employees:
+            # Ensure attendance is recalculated for the month before processing records
+            recalculate_employee_summary(emp, month)
+            
             salary = getattr(emp.job_role, 'salary_structure', None) if emp.job_role else None
             if not salary:
                 continue
@@ -795,9 +828,9 @@ class PayrollRunViewSet(viewsets.ModelViewSet):
             
             summary = AttendanceMonthlySummary.objects.filter(employee=emp, month=month).first()
             if summary and summary.is_processed:
-                late_deductions = summary.salary_deduction_amount - summary.absent_deduction_amount
+                late_deductions = summary.salary_deduction_amount
                 absent_deductions = summary.absent_deduction_amount
-                attendance_deduction = summary.salary_deduction_amount
+                attendance_deduction = Decimal('0.00') # This field was used redundantly
             
             other = salary.other_allowances
             total_allowances = other
@@ -972,7 +1005,7 @@ class BranchViewSet(viewsets.ModelViewSet):
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     queryset = ExpenseCategory.objects.all()
     serializer_class = ExpenseCategorySerializer
-    permission_classes = [IsAdminOrHR]
+    permission_classes = [permissions.IsAuthenticated] # Allow all authenticated users to see categories
 
 class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all().order_by('-date')
@@ -1047,7 +1080,10 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.role in ['ADMIN', 'HR']:
             return LeaveRequest.objects.all().order_by('-start_date')
-        return LeaveRequest.objects.filter(employee__email=user.email).order_by('-start_date')
+        employee = _current_employee(user)
+        if not employee:
+            return LeaveRequest.objects.none()
+        return LeaveRequest.objects.filter(employee=employee).order_by('-start_date')
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -1189,7 +1225,7 @@ class KnowledgeCategoryViewSet(viewsets.ModelViewSet):
 class KnowledgeArticleViewSet(viewsets.ModelViewSet):
     queryset = KnowledgeArticle.objects.all()
     serializer_class = KnowledgeArticleSerializer
-    permission_classes = [permissions.IsAuthenticated, IsStaffReadOnly, IsDepartmentHead, AdminOnlyDelete]
+    permission_classes = [permissions.IsAuthenticated]
     lookup_field = 'slug'
 
     def get_queryset(self):
@@ -1261,14 +1297,17 @@ class OnboardingProgressViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Employees only see their own progress
-        return OnboardingProgress.objects.filter(employee__email=self.request.user.email)
+        employee = _current_employee(self.request.user)
+        if not employee:
+            return OnboardingProgress.objects.none()
+        return OnboardingProgress.objects.filter(employee=employee)
 
     @action(detail=False, methods=['get'])
     def my_guide(self, request):
         try:
             employee = Employee.objects.get(email=request.user.email)
             if not employee.job_role:
-                return Response({"detail": "No job role assigned"}, status=404)
+                return Response({"detail": "No job role assigned. Please contact HR to set your role."}, status=200, data={"no_role": True})
             
             guide = OnboardingGuide.objects.filter(job_role=employee.job_role).first()
             if not guide:
@@ -1456,3 +1495,521 @@ class AttendanceLogViewSet(viewsets.ModelViewSet):
     serializer_class = AttendanceLogSerializer
     permission_classes = [permissions.IsAuthenticated]
     filterset_fields = ['employee', 'date', 'employee_code']
+
+class ChannelViewSet(viewsets.ModelViewSet):
+    queryset = Channel.objects.all()
+    serializer_class = ChannelSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Users can see channels they are members of
+        return Channel.objects.filter(members__user=user).distinct()
+
+    @action(detail=False, methods=['get'])
+    def colleagues(self, request):
+        """Return a list of colleagues to start a chat with."""
+        employees = Employee.objects.filter(is_active=True).exclude(email=request.user.email)
+        user_map = {
+            u['email']: u['id']
+            for u in User.objects.filter(email__in=employees.values_list('email', flat=True)).values('email', 'id')
+        }
+        data = []
+        for emp in employees:
+            passport_url = None
+            if emp.passport:
+                passport_url = request.build_absolute_uri(emp.passport.url)
+            data.append({
+                'id': emp.id,
+                'full_name': emp.full_name,
+                'email': emp.email,
+                'job_title': emp.job_title,
+                'passport': passport_url,
+                'user_id': user_map.get(emp.email)
+            })
+        return Response(data)
+
+    @action(detail=False, methods=['post'])
+    def get_or_create_direct(self, request):
+        """Get or create a direct chat with another user."""
+        other_user_id = request.data.get('user_id')
+        if not other_user_id:
+            return Response({'detail': 'user_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            other_user = User.objects.get(id=other_user_id)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Look for a direct channel between these two users
+        # Direct channels have type='DIRECT' and exactly these 2 members
+        user = request.user
+        channels = Channel.objects.filter(type='DIRECT', members__user=user).filter(members__user=other_user)
+        
+        for channel in channels:
+            if channel.members.count() == 2:
+                return Response(ChannelSerializer(channel).data)
+
+        # Create new direct channel
+        channel = Channel.objects.create(
+            name=f"Chat with {other_user.get_full_name() or other_user.username}",
+            type='DIRECT'
+        )
+        ChannelMember.objects.create(channel=channel, user=user, role='ADMIN')
+        ChannelMember.objects.create(channel=channel, user=other_user, role='MEMBER')
+        
+        return Response(ChannelSerializer(channel).data, status=status.HTTP_201_CREATED)
+
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        channel_id = self.request.query_params.get('channel')
+        if channel_id:
+            # Verify user is member of channel
+            if not ChannelMember.objects.filter(channel_id=channel_id, user=self.request.user).exists():
+                return Message.objects.none()
+            return Message.objects.filter(channel_id=channel_id).order_by('created_at')
+        return Message.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
+
+# ---- Patch layer: stricter access control, recruitment APIs, onboarding fallback, and chat fixes ----
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Count
+from recruitment.models import JobPosting, Applicant
+from recruitment.serializers import JobPostingSerializer, ApplicantSerializer
+
+
+def _current_employee(user):
+    if not user or not getattr(user, 'email', None):
+        return None
+    try:
+        return Employee.objects.get(email=user.email)
+    except Employee.DoesNotExist:
+        return None
+
+
+class FixedEmployeeViewSet(EmployeeViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return Employee.objects.all()
+        employee = _current_employee(user)
+        if not employee:
+            return Employee.objects.none()
+        return Employee.objects.filter(id=employee.id)
+
+
+class FixedEmployeeKPIViewSet(EmployeeKPIViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = EmployeeKPI.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        qs = qs.filter(employee=employee)
+        if employee.job_role:
+            qs = qs.filter(template_item__template__job_role=employee.job_role)
+        return qs
+
+
+class FixedPerformanceSummaryViewSet(PerformanceSummaryViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = PerformanceSummary.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+
+class FixedAttendanceLogViewSet(AttendanceLogViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = AttendanceLog.objects.all().order_by('-date', '-check_in')
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+
+class FixedAttendanceSummaryViewSet(AttendanceSummaryViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = AttendanceSummary.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+
+class FixedAttendanceMonthlySummaryViewSet(AttendanceMonthlySummaryViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = AttendanceMonthlySummary.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+
+class FixedPayrollRunViewSet(PayrollRunViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = PayrollRun.objects.all().order_by('-created_at')
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(records__employee=employee).distinct()
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        if self.request.user.role != 'ADMIN':
+            ctx['employee'] = _current_employee(self.request.user)
+        return ctx
+
+
+class FixedPayrollRecordViewSet(PayrollRecordViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = PayrollRecord.objects.select_related('employee', 'payroll_run').all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+
+class FixedLeaveTypeViewSet(LeaveTypeViewSet):
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.IsAuthenticated()]
+        if self.request.user and self.request.user.role == 'ADMIN':
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
+
+class FixedLeaveRequestViewSet(LeaveRequestViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return LeaveRequest.objects.all().order_by('-start_date')
+        employee = _current_employee(user)
+        if not employee:
+            return LeaveRequest.objects.none()
+        return LeaveRequest.objects.filter(employee=employee).order_by('-start_date')
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        employee = _current_employee(user)
+        if not employee:
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError({'detail': 'Employee profile not found for this user.'})
+        serializer.save(employee=employee)
+        log_action(self.request.user, 'CREATE', 'LeaveRequest', serializer.instance.id)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        if request.user.role != 'ADMIN':
+            return Response({'error': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        return super().approve(request, pk=pk)
+
+
+class FixedEmployeeDocumentViewSet(EmployeeDocumentViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = EmployeeDocument.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            serializer.save(uploaded_by=user)
+        else:
+            employee = _current_employee(user)
+            if not employee:
+                from rest_framework import serializers as drf_serializers
+                raise drf_serializers.ValidationError({'detail': 'Employee profile not found for this user.'})
+            serializer.save(employee=employee, uploaded_by=user)
+        log_action(self.request.user, 'UPLOAD', 'EmployeeDocument', serializer.instance.id)
+
+
+class FixedHRTicketViewSet(HRTicketViewSet):
+    def get_queryset(self):
+        user = self.request.user
+        qs = HRTicket.objects.all()
+        if user.role == 'ADMIN':
+            return qs
+        employee = _current_employee(user)
+        if not employee:
+            return qs.none()
+        return qs.filter(employee=employee)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == 'ADMIN':
+            serializer.save()
+        else:
+            employee = _current_employee(user)
+            if not employee:
+                from rest_framework import serializers as drf_serializers
+                raise drf_serializers.ValidationError({'detail': 'Employee profile not found for this user.'})
+            serializer.save(employee=employee)
+        log_action(self.request.user, 'CREATE', 'HRTicket', serializer.instance.id)
+
+
+class FixedOnboardingGuideViewSet(OnboardingGuideViewSet):
+    def get_permissions(self):
+        if self.request.user and self.request.user.role == 'ADMIN':
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAdminUser()]
+
+
+class FixedOnboardingProgressViewSet(OnboardingProgressViewSet):
+    def get_queryset(self):
+        employee = _current_employee(self.request.user)
+        if not employee:
+            return OnboardingProgress.objects.none()
+        return OnboardingProgress.objects.filter(employee=employee)
+
+    @action(detail=False, methods=['get'])
+    def my_guide(self, request):
+        employee = _current_employee(request.user)
+        if not employee:
+            return Response({'detail': 'Employee profile not found', 'no_employee': True}, status=status.HTTP_200_OK)
+        if not employee.job_role:
+            return Response({'detail': 'No job role assigned. Please contact Admin to set your role.', 'no_role': True}, status=status.HTTP_200_OK)
+
+        guide = OnboardingGuide.objects.filter(job_role=employee.job_role).first()
+        if not guide:
+            return Response({'detail': 'No onboarding guide for your role', 'no_guide': True}, status=status.HTTP_200_OK)
+
+        progress, _ = OnboardingProgress.objects.get_or_create(employee=employee, guide=guide)
+        serializer = OnboardingProgressSerializer(progress)
+        return Response(serializer.data)
+
+
+class RecruitmentJobPostingViewSet(viewsets.ModelViewSet):
+    queryset = JobPosting.objects.select_related('department', 'created_by').all()
+    serializer_class = JobPostingSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.user.is_authenticated and self.request.user.role == 'ADMIN':
+            return qs
+        return qs.filter(is_public=True, status='OPEN')
+
+    def perform_create(self, serializer):
+        status_value = 'OPEN' if serializer.validated_data.get('is_public', False) else 'DRAFT'
+        serializer.save(created_by=self.request.user, status=status_value)
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def publish(self, request, pk=None):
+        if request.user.role != 'ADMIN':
+            return Response({'detail': 'Only admin can publish jobs.'}, status=status.HTTP_403_FORBIDDEN)
+        job = self.get_object()
+        job.status = 'OPEN'
+        job.is_public = True
+        job.save(update_fields=['status', 'is_public', 'updated_at'])
+        return Response(JobPostingSerializer(job, context={'request': request}).data)
+
+
+class RecruitmentApplicantViewSet(viewsets.ModelViewSet):
+    queryset = Applicant.objects.select_related('job_posting').all()
+    serializer_class = ApplicantSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.action == 'create':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_queryset(self):
+        if self.request.user and self.request.user.is_authenticated and self.request.user.role == 'ADMIN':
+            return self.queryset
+        return Applicant.objects.none()
+
+    def perform_create(self, serializer):
+        job = serializer.validated_data['job_posting']
+        if not job.is_public or job.status != 'OPEN':
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError({'job_posting': 'This role is not currently accepting applications.'})
+        serializer.save(status='APPLIED')
+
+    @action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def change_status(self, request, pk=None):
+        if request.user.role != 'ADMIN':
+            return Response({'detail': 'Only admin can update applicant status.'}, status=status.HTTP_403_FORBIDDEN)
+        applicant = self.get_object()
+        new_status = request.data.get('status')
+        valid = {choice[0] for choice in Applicant.STATUS_CHOICES}
+        if new_status not in valid:
+            return Response({'detail': 'Invalid status value.'}, status=status.HTTP_400_BAD_REQUEST)
+        applicant.status = new_status
+        applicant.save(update_fields=['status', 'updated_at'])
+        return Response(ApplicantSerializer(applicant, context={'request': request}).data)
+
+
+class FixedMessageViewSet(MessageViewSet):
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def perform_create(self, serializer):
+        channel = serializer.validated_data.get('channel')
+        if not channel:
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError({'channel': 'channel is required'})
+        if not ChannelMember.objects.filter(channel=channel, user=self.request.user).exists():
+            from rest_framework import serializers as drf_serializers
+            raise drf_serializers.ValidationError({'detail': 'You are not a member of this channel.'})
+        serializer.save(sender=self.request.user)
+
+
+class AdminSettingsViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    PURGE_MAP = {
+        'documents': EmployeeDocument,
+        'tickets': HRTicket,
+        'ticket_messages': TicketMessage,
+        'chat_messages': Message,
+        'chat_channels': Channel,
+        'leave_requests': LeaveRequest,
+        'resignations': Resignation,
+        'expenses': Expense,
+        'onboarding_progress': OnboardingProgress,
+        'onboarding_guides': OnboardingGuide,
+        'job_postings': JobPosting,
+        'applicants': Applicant,
+        'attendance_uploads': AttendanceUpload,
+        'attendance_logs': AttendanceLog,
+        'attendance_summaries': AttendanceSummary,
+        'attendance_monthly_summaries': AttendanceMonthlySummary,
+        'performance_summaries': PerformanceSummary,
+    }
+
+    RESET_MODELS = [
+        PayrollRecord,
+        PayrollRun,
+        EmployeeKPI,
+        PerformanceSummary,
+        AttendanceMonthlySummary,
+        AttendanceSummary,
+        AttendanceLog,
+        AttendanceUpload,
+        Expense,
+        LeaveRequest,
+        Resignation,
+        EmployeeDocument,
+        HRTicket,
+        TicketMessage,
+        Message,
+        ChannelMember,
+        Channel,
+        Applicant,
+        JobPosting,
+        OnboardingProgress,
+    ]
+
+    def _ensure_admin(self, request):
+        if request.user.role != 'ADMIN':
+            return Response({'detail': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        return None
+
+    @action(detail=False, methods=['post'])
+    def reset_defaults(self, request):
+        deny = self._ensure_admin(request)
+        if deny:
+            return deny
+        # Clear operational data while keeping core configuration (users/employees/roles/departments)
+        for model in self.RESET_MODELS:
+            model.objects.all().delete()
+        return Response({'detail': 'App reset to default successfully.'})
+
+    @action(detail=False, methods=['get'])
+    def export_data(self, request):
+        deny = self._ensure_admin(request)
+        if deny:
+            return deny
+        import io
+        from django.core.management import call_command
+        buffer = io.StringIO()
+        call_command('dumpdata', 'api', 'recruitment', stdout=buffer, indent=2)
+        response = HttpResponse(buffer.getvalue(), content_type='application/json')
+        response['Content-Disposition'] = 'attachment; filename="vemrehr_backup.json"'
+        return response
+
+    @action(detail=False, methods=['post'])
+    def import_data(self, request):
+        deny = self._ensure_admin(request)
+        if deny:
+            return deny
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': 'file is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        reset = str(request.data.get('reset', '0')).lower() in ['1', 'true', 'yes']
+        if reset:
+            for model in self.RESET_MODELS:
+                model.objects.all().delete()
+        import os
+        import tempfile
+        from django.core.management import call_command
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.json') as tmp:
+                tmp.write(file.read())
+                tmp_path = tmp.name
+            call_command('loaddata', tmp_path, verbosity=0)
+        finally:
+            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+        return Response({'detail': 'Data import completed.'})
+
+    @action(detail=False, methods=['get'])
+    def overview(self, request):
+        deny = self._ensure_admin(request)
+        if deny:
+            return deny
+        data = []
+        for key, model in self.PURGE_MAP.items():
+            data.append({'key': key, 'count': model.objects.count()})
+        return Response({'targets': data, 'protected': ['employee_kpis', 'payroll_runs', 'payroll_records']})
+
+    @action(detail=False, methods=['post'])
+    def purge(self, request):
+        deny = self._ensure_admin(request)
+        if deny:
+            return deny
+        target = request.data.get('target')
+        model = self.PURGE_MAP.get(target)
+        if not model:
+            return Response({'detail': 'Unknown or protected target.'}, status=status.HTTP_400_BAD_REQUEST)
+        deleted, _ = model.objects.all().delete()
+        return Response({'target': target, 'deleted': deleted})
+
+
+
+
+
+

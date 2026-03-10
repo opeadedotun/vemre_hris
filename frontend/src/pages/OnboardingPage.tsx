@@ -1,50 +1,68 @@
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import {
-    CheckCircle2,
-    Circle,
-    Rocket,
-    BookOpen,
-    ShieldCheck,
-    Clock,
-    AlertCircle,
-    Loader2
-} from 'lucide-react';
-import { knowledgeApi, OnboardingProgress } from '../api/knowledge';
+import { CheckCircle2, Circle, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { knowledgeApi, OnboardingProgress, OnboardingGuide } from '../api/knowledge';
+import api from '../api/axios';
+import { useAuth } from '../context/AuthContext';
 
 const OnboardingPage: React.FC = () => {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'ADMIN';
+
     const [progress, setProgress] = useState<OnboardingProgress | null>(null);
+    const [guides, setGuides] = useState<OnboardingGuide[]>([]);
+    const [roles, setRoles] = useState<{ id: number; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchData = async () => {
+    const [newGuide, setNewGuide] = useState({ job_role: '', title: '', content: '', checklist: '' });
+
+    const fetchEmployeeGuide = async () => {
         try {
             const res = await knowledgeApi.getMyOnboarding();
-            setProgress(res.data);
+            const payload: any = res.data;
+            if (payload?.id) {
+                setProgress(payload);
+            } else {
+                setError(payload?.detail || 'No onboarding guide assigned yet.');
+            }
         } catch (err: any) {
-            console.error('Error fetching onboarding:', err);
             setError(err.response?.data?.detail || 'Failed to load onboarding guide');
         } finally {
             setLoading(false);
         }
     };
 
+    const fetchAdminData = async () => {
+        try {
+            const [guidesRes, rolesRes] = await Promise.all([
+                knowledgeApi.getOnboardingGuides(),
+                api.get('/job-roles/'),
+            ]);
+            setGuides(guidesRes.data || []);
+            setRoles(rolesRes.data || []);
+        } catch (err) {
+            console.error('Failed to load admin onboarding data', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (isAdmin) {
+            fetchAdminData();
+        } else {
+            fetchEmployeeGuide();
+        }
+    }, [isAdmin]);
 
     const handleToggleItem = async (item: string) => {
         if (!progress || updating) return;
-
         const currentItems = [...progress.completed_items];
         const index = currentItems.indexOf(item);
-
-        if (index > -1) {
-            currentItems.splice(index, 1);
-        } else {
-            currentItems.push(item);
-        }
+        if (index > -1) currentItems.splice(index, 1);
+        else currentItems.push(item);
 
         setUpdating(true);
         try {
@@ -57,28 +75,79 @@ const OnboardingPage: React.FC = () => {
         }
     };
 
+    const createGuide = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const checklist_json = newGuide.checklist
+            .split('\n')
+            .map((x) => x.trim())
+            .filter(Boolean);
+
+        try {
+            await knowledgeApi.createOnboardingGuide({
+                job_role: Number(newGuide.job_role),
+                title: newGuide.title,
+                content: newGuide.content,
+                checklist_json,
+            });
+            setNewGuide({ job_role: '', title: '', content: '', checklist: '' });
+            fetchAdminData();
+        } catch (err) {
+            console.error('Failed to create guide', err);
+            alert('Unable to create onboarding guide.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                <Loader2 className="animate-spin mb-4" size={48} />
-                <p className="font-bold uppercase tracking-widest text-xs">Preparing your journey...</p>
+                <Loader2 className="animate-spin mb-4" size={40} />
+                <p>Loading onboarding...</p>
+            </div>
+        );
+    }
+
+    if (isAdmin) {
+        return (
+            <div className="space-y-8">
+                <div>
+                    <h1 className="text-3xl font-extrabold text-slate-900">Onboarding Guide Admin</h1>
+                    <p className="text-slate-500">Create role-specific onboarding guides for employees.</p>
+                </div>
+
+                <form onSubmit={createGuide} className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
+                    <h2 className="font-bold text-slate-800 flex items-center gap-2"><Plus size={16} /> New Role Guide</h2>
+                    <select required className="w-full border border-slate-200 rounded-lg p-3" value={newGuide.job_role} onChange={(e) => setNewGuide({ ...newGuide, job_role: e.target.value })}>
+                        <option value="">Select role</option>
+                        {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                    <input required className="w-full border border-slate-200 rounded-lg p-3" placeholder="Guide title" value={newGuide.title} onChange={(e) => setNewGuide({ ...newGuide, title: e.target.value })} />
+                    <textarea required rows={4} className="w-full border border-slate-200 rounded-lg p-3" placeholder="Guide content" value={newGuide.content} onChange={(e) => setNewGuide({ ...newGuide, content: e.target.value })} />
+                    <textarea rows={5} className="w-full border border-slate-200 rounded-lg p-3" placeholder="Checklist (one item per line)" value={newGuide.checklist} onChange={(e) => setNewGuide({ ...newGuide, checklist: e.target.value })} />
+                    <button className="px-4 py-2 rounded-lg bg-primary-600 text-white font-semibold">Create Guide</button>
+                </form>
+
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 bg-slate-50"><h2 className="font-bold text-slate-800">Existing Guides</h2></div>
+                    <div className="divide-y divide-slate-100">
+                        {guides.map((g) => (
+                            <div key={g.id} className="px-6 py-4">
+                                <p className="font-semibold text-slate-800">{g.title}</p>
+                                <p className="text-xs text-slate-500">Role: {g.job_role_name}</p>
+                                <p className="text-sm text-slate-600 mt-2 line-clamp-2">{g.content}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
 
     if (error || !progress) {
         return (
-            <div className="max-w-2xl mx-auto mt-20 p-12 bg-white rounded-3xl border border-slate-200 text-center shadow-xl">
-                <div className="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <AlertCircle size={40} />
-                </div>
-                <h2 className="text-2xl font-black text-slate-800 mb-4">No Onboarding Assigned</h2>
-                <p className="text-slate-500 mb-8">
-                    {error || "It looks like there isn't an onboarding guide assigned to your job role yet. Please contact your manager or HR department."}
-                </p>
-                <div className="pt-8 border-t border-slate-100">
-                    <p className="font-black text-slate-400 uppercase tracking-widest text-[10px]">Reference Code: ONB-404</p>
-                </div>
+            <div className="max-w-2xl mx-auto mt-20 p-10 bg-white rounded-2xl border border-slate-200 text-center">
+                <AlertCircle className="mx-auto mb-4 text-amber-500" size={34} />
+                <h2 className="text-2xl font-bold text-slate-800 mb-3">No Onboarding Assigned</h2>
+                <p className="text-slate-500">{error || 'No onboarding guide assigned to your role yet.'}</p>
             </div>
         );
     }
@@ -86,121 +155,27 @@ const OnboardingPage: React.FC = () => {
     const completionPercentage = Math.round((progress.completed_items.length / progress.checklist.length) * 100) || 0;
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header Section */}
-            <div className="relative bg-slate-900 rounded-[3rem] p-12 text-white overflow-hidden shadow-2xl">
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                    <div className="space-y-4 text-center md:text-left">
-                        <div className="inline-flex items-center gap-2 bg-primary-500/20 text-primary-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-primary-500/30">
-                            <Rocket size={14} />
-                            Welcome Aboard!
-                        </div>
-                        <h1 className="text-5xl font-black tracking-tight">{progress.guide_title}</h1>
-                        <p className="text-slate-400 text-lg max-w-lg">
-                            We're excited to have you join the team. Complete these essential steps to get fully up to speed.
-                        </p>
-                    </div>
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="relative w-40 h-40">
-                            <svg className="w-full h-full transform -rotate-90">
-                                <circle
-                                    cx="80"
-                                    cy="80"
-                                    r="70"
-                                    stroke="currentColor"
-                                    strokeWidth="12"
-                                    fill="transparent"
-                                    className="text-slate-800"
-                                />
-                                <circle
-                                    cx="80"
-                                    cy="80"
-                                    r="70"
-                                    stroke="currentColor"
-                                    strokeWidth="12"
-                                    fill="transparent"
-                                    strokeDasharray={440}
-                                    strokeDashoffset={440 - (440 * completionPercentage) / 100}
-                                    className="text-primary-500 transition-all duration-1000 ease-out"
-                                />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className="text-3xl font-black">{completionPercentage}%</span>
-                                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">Complete</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {/* Decorative background art */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-primary-600/10 rounded-full -mr-48 -mt-48 blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary-400/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
+        <div className="max-w-5xl mx-auto space-y-6">
+            <div className="bg-slate-900 rounded-2xl p-8 text-white">
+                <h1 className="text-3xl font-black">{progress.guide_title}</h1>
+                <p className="text-slate-300 mt-2">Completion: {completionPercentage}%</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Content Area */}
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white rounded-3xl border border-slate-200 p-10 shadow-xl prose prose-slate max-w-none">
-                        <div className="flex items-center gap-3 mb-8 not-prose">
-                            <BookOpen className="text-primary-600" size={28} />
-                            <h2 className="text-2xl font-black text-slate-800 m-0">Guide & Procedures</h2>
-                        </div>
-                        <div
-                            dangerouslySetInnerHTML={{ __html: progress.guide_content || '<p>Loading content...</p>' }}
-                            className="text-slate-600 leading-relaxed font-medium"
-                        />
-                    </div>
-                </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                <div className="prose max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: progress.guide_content || '' }} />
+            </div>
 
-                {/* Checklist Sidebar */}
-                <div className="space-y-6">
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden sticky top-8">
-                        <div className="p-8 bg-slate-50 border-b border-slate-200">
-                            <h3 className="text-lg font-black text-slate-800 flex items-center justify-between">
-                                Checklist
-                                <span className="text-primary-600 bg-primary-50 px-3 py-1 rounded-full text-xs font-black">
-                                    {progress.completed_items.length}/{progress.checklist.length}
-                                </span>
-                            </h3>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {progress.checklist.map((item, idx) => {
-                                const isDone = progress.completed_items.includes(item);
-                                return (
-                                    <button
-                                        key={idx}
-                                        onClick={() => handleToggleItem(item)}
-                                        disabled={updating}
-                                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center gap-4 group hover:scale-[1.02] active:scale-[0.98] ${isDone
-                                            ? 'bg-green-50 border-green-100 text-green-700'
-                                            : 'bg-white border-slate-100 text-slate-600 hover:border-primary-200 shadow-sm'
-                                            }`}
-                                    >
-                                        <div className={`shrink-0 transition-colors ${isDone ? 'text-green-600' : 'text-slate-300 group-hover:text-primary-400'}`}>
-                                            {isDone ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                                        </div>
-                                        <span className={`text-sm font-bold ${isDone ? 'line-through opacity-60' : ''}`}>
-                                            {item}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        {progress.is_completed && (
-                            <div className="p-8 bg-green-600 text-white text-center">
-                                <ShieldCheck size={32} className="mx-auto mb-3" />
-                                <h4 className="font-black text-lg mb-1">Onboarding Complete!</h4>
-                                <p className="text-xs text-green-100 font-medium">You're all set. Keep up the great work!</p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="p-6 bg-slate-100 rounded-3xl border border-slate-200 text-center">
-                        <Clock size={20} className="mx-auto mb-2 text-slate-400" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                            Started on {new Date(progress.started_at).toLocaleDateString()}
-                        </p>
-                    </div>
-                </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-3">
+                <h2 className="font-bold text-slate-800">Checklist</h2>
+                {progress.checklist.map((item, idx) => {
+                    const done = progress.completed_items.includes(item);
+                    return (
+                        <button key={idx} onClick={() => handleToggleItem(item)} className={`w-full text-left p-3 rounded-lg border flex items-center gap-3 ${done ? 'bg-green-50 border-green-200 text-green-700' : 'border-slate-200 text-slate-700'}`}>
+                            {done ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+                            <span>{item}</span>
+                        </button>
+                    );
+                })}
             </div>
         </div>
     );

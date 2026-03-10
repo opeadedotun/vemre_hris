@@ -22,6 +22,7 @@ import {
 import EmployeeModal from '../components/EmployeeModal';
 import DocumentsTab from '../components/DocumentsTab';
 import HelpdeskTab from '../components/HelpdeskTab';
+import logo from '../assets/logo.png';
 
 interface Employee {
     id: number;
@@ -287,7 +288,8 @@ const EmployeePage: React.FC = () => {
             {isDetailOpen && selectedEmployee && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in duration-200">
-                        <div className="h-32 bg-primary-600 relative">
+                        <div className="h-32 bg-primary-600 relative flex items-center justify-center">
+                            <img src={logo} alt="VEMRE Logo" className="h-20 w-auto opacity-95" />
                             <button onClick={() => setIsDetailOpen(false)} className="absolute top-4 right-4 bg-white/20 hover:bg-white/30 text-white rounded-full p-2 transition-colors">
                                 <X size={20} />
                             </button>
@@ -482,3 +484,7 @@ const EmployeePage: React.FC = () => {
 };
 
 export default EmployeePage;
+
+
+
+

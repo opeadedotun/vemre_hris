@@ -7,6 +7,7 @@ from io import BytesIO
 import os
 import datetime
 from django.utils import timezone
+from django.conf import settings
 
 def generate_payslip_pdf(record):
     buffer = BytesIO()
@@ -21,6 +22,14 @@ def generate_payslip_pdf(record):
 
     elements = []
 
+    # Logo
+    logo_path = os.path.join(settings.BASE_DIR, '..', 'img', 'vemre_logo.png')
+    if os.path.exists(logo_path):
+        logo_img = Image(logo_path, width=1.5*inch, height=0.6*inch)
+        logo_img.hAlign = 'CENTER'
+        elements.append(logo_img)
+        elements.append(Spacer(1, 0.1*inch))
+    
     # Title
     elements.append(Paragraph("VEMRE AREMU ENTERPRISE LIMITED", header_style))
     elements.append(Paragraph(f"PAYSLIP FOR {record.payroll_run.month}", ParagraphStyle('Month', parent=styles['Heading3'], alignment=1, spaceAfter=20)))
@@ -135,6 +144,13 @@ def generate_leave_approval_pdf(leave_request):
     content_style = ParagraphStyle('Content', parent=styles['Normal'], fontSize=11, leading=14, spaceAfter=12)
     
     elements = []
+    # Logo
+    logo_path = os.path.join(settings.BASE_DIR, '..', 'img', 'vemre_logo.png')
+    if os.path.exists(logo_path):
+        logo_img = Image(logo_path, width=1.5*inch, height=0.6*inch)
+        logo_img.hAlign = 'CENTER'
+        elements.append(logo_img)
+        elements.append(Spacer(1, 0.1*inch))
     elements.append(Paragraph("VEMRE AREMU ENTERPRISE LIMITED", header_style))
     elements.append(Spacer(1, 0.5*inch))
     elements.append(Paragraph(f"Date: {timezone.now().strftime('%d %B %Y')}", styles['Normal']))
@@ -179,6 +195,13 @@ def generate_resignation_acceptance_pdf(resignation):
     content_style = ParagraphStyle('Content', parent=styles['Normal'], fontSize=11, leading=14, spaceAfter=12)
     
     elements = []
+    # Logo
+    logo_path = os.path.join(settings.BASE_DIR, '..', 'img', 'vemre_logo.png')
+    if os.path.exists(logo_path):
+        logo_img = Image(logo_path, width=1.5*inch, height=0.6*inch)
+        logo_img.hAlign = 'CENTER'
+        elements.append(logo_img)
+        elements.append(Spacer(1, 0.1*inch))
     elements.append(Paragraph("VEMRE AREMU ENTERPRISE LIMITED", header_style))
     elements.append(Spacer(1, 0.5*inch))
     elements.append(Paragraph(f"Date: {timezone.now().strftime('%d %B %Y')}", styles['Normal']))

@@ -29,6 +29,7 @@ const ESSDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [todayLog, setTodayLog] = useState<any>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -74,6 +75,7 @@ const ESSDashboard: React.FC = () => {
 
             } catch (error) {
                 console.error('Error fetching ESS data:', error);
+                setLoadError('Unable to load your self-service data. Please contact HR.');
             } finally {
                 setLoading(false);
             }
@@ -83,6 +85,11 @@ const ESSDashboard: React.FC = () => {
     }, []);
 
     const handleClockIn = async () => {
+        if (!employee?.id) {
+            alert('Employee profile not found. Please contact HR.');
+            return;
+        }
+
         if (!navigator.geolocation) {
             alert('Geolocation is not supported by your browser');
             return;
@@ -125,6 +132,17 @@ const ESSDashboard: React.FC = () => {
         );
     }
 
+    if (loadError) {
+        return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-slate-600">
+                {loadError}
+            </div>
+        );
+    }
+
+    const completedCount = onboarding?.completed_items?.length || 0;
+    const checklistCount = onboarding?.checklist?.length || 0;
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header / Welcome */}
@@ -157,7 +175,7 @@ const ESSDashboard: React.FC = () => {
                         </div>
                         <div>
                             <h3 className="text-xl font-black">Complete your Onboarding</h3>
-                            <p className="text-primary-100/80 font-medium">You've finished {onboarding.completed_items.length} of {onboarding.checklist.length} items in your {onboarding.guide_title} guide.</p>
+                            <p className="text-primary-100/80 font-medium">You've finished {completedCount} of {checklistCount} items in your {onboarding.guide_title} guide.</p>
                         </div>
                     </div>
                     <button className="bg-white text-primary-600 px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs flex items-center gap-2 group-hover:translate-x-2 transition-all">
@@ -239,7 +257,7 @@ const ESSDashboard: React.FC = () => {
                     </div>
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Performance Index</p>
                     <p className="text-3xl font-black text-slate-900">{attendance?.avg_performance || 'N/A'}</p>
-                    <p className="text-xs text-emerald-600 mt-2 font-bold cursor-pointer hover:underline" onClick={() => window.location.href = '/performance'}>View KPI Details</p>
+                    <p className="text-xs text-emerald-600 mt-2 font-bold cursor-pointer hover:underline" onClick={() => window.location.href = '/my-kpis'}>View KPI Details</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
@@ -250,7 +268,7 @@ const ESSDashboard: React.FC = () => {
                     <p className="text-3xl font-black text-slate-900">
                         {attendance?.net_salary ? `₦${parseFloat(attendance.net_salary).toLocaleString()}` : 'Pending'}
                     </p>
-                    <p className="text-xs text-primary-600 mt-2 font-bold cursor-pointer hover:underline" onClick={() => window.location.href = '/payroll'}>View Payout Details</p>
+                    <p className="text-xs text-primary-600 mt-2 font-bold cursor-pointer hover:underline" onClick={() => window.location.href = '/my-payout'}>View Payout Details</p>
                 </div>
             </div>
 
@@ -312,3 +330,4 @@ const ESSDashboard: React.FC = () => {
 };
 
 export default ESSDashboard;
+

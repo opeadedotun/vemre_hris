@@ -207,7 +207,8 @@ const MyProfilePage: React.FC = () => {
                                     <input
                                         type="text"
                                         required
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all"
+                                        disabled={authUser?.role === 'USER'}
+                                        className={`w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all ${authUser?.role === 'USER' ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         value={formData.first_name}
                                         onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                                     />
@@ -217,7 +218,8 @@ const MyProfilePage: React.FC = () => {
                                     <input
                                         type="email"
                                         required
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all"
+                                        disabled={authUser?.role === 'USER'}
+                                        className={`w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all ${authUser?.role === 'USER' ? 'opacity-60 cursor-not-allowed' : ''}`}
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     />
@@ -285,3 +287,4 @@ const MyProfilePage: React.FC = () => {
 };
 
 export default MyProfilePage;
+

@@ -69,7 +69,7 @@ export const knowledgeApi = {
     createArticle: (data: Partial<KnowledgeArticle>) => api.post<KnowledgeArticle>('/knowledge-articles/', data),
     updateArticle: (slug: string, data: Partial<KnowledgeArticle>) => api.patch<KnowledgeArticle>(`/knowledge-articles/${slug}/`, data),
     deleteArticle: (slug: string) => api.delete(`/knowledge-articles/${slug}/`),
-    getArticleVersions: (slug: string) => api.get<KnowledgeVersion[]>(`/knowledge-articles/${slug}/history/`),
+    getArticleHistory: (slug: string) => api.get<KnowledgeVersion[]>(`/knowledge-articles/${slug}/history/`),
 
     // Onboarding
     getOnboardingGuides: () => api.get<OnboardingGuide[]>('/onboarding-guides/'),

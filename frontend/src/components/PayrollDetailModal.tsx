@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { X, Printer, Download, CreditCard, User, Building2, Briefcase, Calendar, Mail, Loader2 } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 interface PayrollRecord {
     id: number;
@@ -41,14 +41,28 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month, o
         window.print();
     };
 
-    const handleDownload = () => {
-        // Simple JSON download or just trigger print as PDF
-        const element = document.createElement("a");
-        const file = new Blob([JSON.stringify(record, null, 2)], { type: 'text/plain' });
-        element.href = URL.createObjectURL(file);
-        element.download = `payroll_slip_${record.employee_code}_${month}.txt`;
-        document.body.appendChild(element);
-        element.click();
+    const handleDownload = async () => {
+        try {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/payroll-records/${record.id}/payslip_pdf/`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (!response.ok) throw new Error('Download failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `payslip_${record.employee_code}_${month}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            alert('Failed to download PDF. Please try again.');
+        }
     };
 
     const totalDeductions = parseFloat(record.late_deductions) + parseFloat(record.absent_deductions) +
@@ -88,7 +102,8 @@ const PayrollDetailModal: React.FC<Props> = ({ isOpen, onClose, record, month, o
 
                 <div id="payroll-slip" className="p-8 space-y-8 print:p-12">
                     {/* Company Branding - For Print */}
-                    <div className="hidden print:block text-center border-b-2 border-slate-900 pb-6 mb-8">
+                    <div className="hidden print:flex flex-col items-center border-b-2 border-slate-900 pb-6 mb-8">
+                        <img src={logo} alt="Company Logo" className="h-16 w-auto mb-4" />
                         <h1 className="text-2xl font-black tracking-tighter">VEMRE AREMU ENTERPRISE LIMITED</h1>
                         <p className="text-sm font-bold uppercase tracking-widest text-slate-500">Employee Payslip - {month}</p>
                     </div>

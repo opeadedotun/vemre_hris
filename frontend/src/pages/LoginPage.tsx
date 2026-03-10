@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { Lock, User, AlertCircle } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const LoginPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -41,7 +42,7 @@ const LoginPage: React.FC = () => {
         <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center p-4">
             <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100">
                 <div className="bg-primary-700 p-8 text-white text-center">
-                    <h1 className="text-3xl font-bold tracking-tight">VEMRE HRIS</h1>
+                    <img src={logo} alt="VEMRE Logo" className="h-16 w-auto mx-auto" />
                     <p className="mt-2 text-primary-100 italic">Enterprise Performance & Appraisal Engine</p>
                 </div>
 
@@ -119,3 +120,4 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+

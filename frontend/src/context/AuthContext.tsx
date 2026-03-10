@@ -6,7 +6,7 @@ interface User {
     id: number;
     username: string;
     email: string;
-    role: 'ADMIN' | 'HR' | 'MANAGER' | 'ACCOUNTANT' | 'STAFF';
+    role: 'ADMIN' | 'USER';
 }
 
 interface AuthContextType {

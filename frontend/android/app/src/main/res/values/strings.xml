@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vemre HRIS</string>
+    <string name="title_activity_main">Vemre HRIS</string>
+    <string name="package_name">com.vemre.hris</string>
+    <string name="custom_url_scheme">com.vemre.hris</string>
+</resources>

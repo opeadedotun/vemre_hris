@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+import logo from '../assets/logo.png';
+
 interface SidebarProps {
     isOpen: boolean;
     onClose: () => void;
@@ -57,16 +59,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Attendance', to: '/attendance', icon: Calendar, color: 'text-red-500' },
         { name: 'Appraisal History', to: '/history', icon: History, color: 'text-yellow-500' },
         { name: 'Ticket Management', to: '/tickets', icon: MessageSquare, color: 'text-rose-600' },
+        { name: 'Settings', to: '/settings', icon: Shield, color: 'text-slate-300' },
     ];
 
     const selfServiceMenus = [
-        { name: 'My Dashboard', to: user?.role === 'STAFF' ? "/" : "/my-dashboard", icon: LayoutDashboard, color: 'text-primary-500' },
+        { name: 'My Dashboard', to: user?.role === 'USER' ? "/" : "/my-dashboard", icon: LayoutDashboard, color: 'text-primary-500' },
         { name: 'My Documents', to: '/my-documents', icon: FileText, color: 'text-blue-500' },
         { name: 'My Tickets', to: '/my-tickets', icon: Ticket, color: 'text-orange-500' },
         { name: 'My Leaves', to: '/my-leaves', icon: Calendar, color: 'text-emerald-500' },
         { name: 'My Expenses', to: '/my-expenses', icon: CreditCard, color: 'text-rose-500' },
+        { name: 'My KPIs', to: '/my-kpis', icon: TrendingUp, color: 'text-green-500' },
+        { name: 'My Payout', to: '/my-payout', icon: DollarSign, color: 'text-emerald-500' },
         { name: 'Knowledge Base', to: '/knowledge', icon: BookOpen, color: 'text-indigo-500', end: true },
         { name: 'Search Knowledge', to: '/knowledge/search', icon: Search, color: 'text-slate-400' },
+        { name: 'Connect & Chat', to: '/chat', icon: MessageSquare, color: 'text-pink-500' },
         { name: 'Onboarding Guide', to: '/onboarding', icon: Rocket, color: 'text-amber-500' },
         { name: 'My Profile', to: '/profile', icon: User, color: 'text-primary-500' },
     ];
@@ -91,9 +97,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 transition-transform duration-300 ease-in-out
                 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>
-                <div className="p-6 bg-slate-950 border-b border-slate-800">
-                    <h1 className="text-xl font-bold text-white tracking-widest">VEMRE HRIS</h1>
-                    <p className="text-xs text-slate-500 mt-1 uppercase tracking-tighter">Enterprise Management</p>
+                <div className="p-6 bg-slate-950 border-b border-slate-800 flex flex-col items-center">
+                    <img src={logo} alt="VEMRE Logo" className="h-20 w-auto object-contain mb-2" />
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Enterprise Management</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
@@ -165,4 +171,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 };
 
 export default Sidebar;
+
+
+
 

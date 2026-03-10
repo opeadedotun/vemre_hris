@@ -26,7 +26,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
         first_name: '',
         email: '',
         password: '',
-        role: 'STAFF',
+        role: 'USER',
         is_active: true
     });
     const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
                 first_name: '',
                 email: '',
                 password: '',
-                role: 'STAFF',
+                role: 'USER',
                 is_active: true
             });
         }
@@ -187,11 +187,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                                 className={`w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none bg-white ${isSelf ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                <option value="ADMIN">Administrator</option>
-                                <option value="HR">HR Officer</option>
-                                <option value="ACCOUNTANT">Accountant</option>
-                                <option value="MANAGER">Manager</option>
-                                <option value="STAFF">Staff</option>
+                                <option value="ADMIN">Administrator</option>                                <option value="USER">User</option>
                             </select>
                         </div>
                         {isSelf && <p className="text-[10px] text-amber-600 mt-1 font-bold italic">You cannot change your own access level.</p>}
@@ -232,3 +228,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSuccess, user 
 };
 
 export default UserModal;
+
+
+
+

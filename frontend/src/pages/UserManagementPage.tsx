@@ -58,12 +58,10 @@ const UserManagementPage: React.FC = () => {
     const getRoleBadge = (role: string) => {
         const styles: any = {
             'ADMIN': 'bg-purple-100 text-purple-700 border-purple-200',
-            'HR': 'bg-blue-100 text-blue-700 border-blue-200',
-            'STAFF': 'bg-teal-100 text-teal-700 border-teal-200',
-            'MANAGER': 'bg-slate-100 text-slate-700 border-slate-200',
+            'USER': 'bg-teal-100 text-teal-700 border-teal-200',
         };
         return (
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${styles[role] || styles.MANAGER}`}>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${styles[role] || styles.USER}`}>
                 {role}
             </span>
         );
@@ -162,3 +160,4 @@ const UserManagementPage: React.FC = () => {
 };
 
 export default UserManagementPage;
+

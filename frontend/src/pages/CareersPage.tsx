@@ -101,7 +101,7 @@ const CareersPage: React.FC = () => {
                                                 {job.department_name}
                                             </span>
                                             <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                                                {job.job_type.replace('_', ' ')}
+                                                {(job.job_type || 'FULL_TIME').replace('_', ' ')}
                                             </span>
                                         </div>
                                         <h3 className="text-2xl font-bold group-hover:text-primary-600 transition-colors">
@@ -203,3 +203,4 @@ const CareersPage: React.FC = () => {
 };
 
 export default CareersPage;
+

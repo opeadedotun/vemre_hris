@@ -86,7 +86,7 @@ const KnowledgeArticleView: React.FC = () => {
 
     if (!article) return null;
 
-    const canEdit = user?.role === 'ADMIN' || user?.role === 'HR' || user?.role === 'MANAGER';
+    const canEdit = user?.role === 'ADMIN';
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -260,3 +260,4 @@ const KnowledgeArticleView: React.FC = () => {
 };
 
 export default KnowledgeArticleView;
+

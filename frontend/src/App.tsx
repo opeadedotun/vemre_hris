@@ -29,8 +29,26 @@ import KnowledgeArticleView from './pages/KnowledgeArticleView';
 import KnowledgeArticleEdit from './pages/KnowledgeArticleEdit';
 import KnowledgeSearchPage from './pages/KnowledgeSearchPage';
 import OnboardingPage from './pages/OnboardingPage';
+import ChatPage from './pages/ChatPage';
+import SettingsPage from './pages/SettingsPage';
+import MyKPIPage from './pages/MyKPIPage';
+import MyPayoutPage from './pages/MyPayoutPage';
+import { useState } from 'react';
+import SplashScreen from './components/SplashScreen';
 
 function App() {
+    const isCareerRoute = window.location.pathname.startsWith('/careers');
+    const [showSplash, setShowSplash] = useState(() => !isCareerRoute && !localStorage.getItem('vemre_splash_done'));
+
+    const handleSplashFinish = () => {
+        localStorage.setItem('vemre_splash_done', '1');
+        setShowSplash(false);
+    };
+
+    if (showSplash) {
+        return <SplashScreen onFinish={handleSplashFinish} />;
+    }
+
     return (
         <AuthProvider>
             <Router>
@@ -41,7 +59,6 @@ function App() {
                         <Route element={<Layout />}>
                             <Route path="/" element={<Dashboard />} />
 
-                            {/* Management Routes - Protected for Admin only */}
                             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
                                 <Route path="/users" element={<UserManagementPage />} />
                                 <Route path="/departments" element={<DepartmentPage />} />
@@ -56,27 +73,28 @@ function App() {
                                 <Route path="/reimbursements" element={<ReimbursementPage />} />
                                 <Route path="/recruitment" element={<RecruitmentPage />} />
                                 <Route path="/tickets" element={<TicketManagementPage />} />
+                                <Route path="/settings" element={<SettingsPage />} />
                             </Route>
 
-                            {/* Private Staff/Common Routes */}
                             <Route path="/profile" element={<MyProfilePage />} />
                             <Route path="/knowledge" element={<KnowledgeDashboard />} />
                             <Route path="/knowledge/:slug" element={<KnowledgeArticleView />} />
                             <Route path="/knowledge/new" element={<KnowledgeArticleEdit />} />
                             <Route path="/knowledge/edit/:slug" element={<KnowledgeArticleEdit />} />
                             <Route path="/knowledge/search" element={<KnowledgeSearchPage />} />
+                            <Route path="/chat" element={<ChatPage />} />
 
-                            {/* ESS Routes */}
                             <Route path="/onboarding" element={<OnboardingPage />} />
                             <Route path="/my-dashboard" element={<ESSDashboard />} />
                             <Route path="/my-documents" element={<MyDocumentsPage />} />
                             <Route path="/my-tickets" element={<MyTicketsPage />} />
                             <Route path="/my-leaves" element={<MyLeavesPage />} />
                             <Route path="/my-expenses" element={<MyExpensesPage />} />
+                            <Route path="/my-kpis" element={<MyKPIPage />} />
+                            <Route path="/my-payout" element={<MyPayoutPage />} />
                         </Route>
                     </Route>
 
-                    {/* Public Recruitment Routes */}
                     <Route path="/careers" element={<CareersPage />} />
 
                     <Route path="*" element={<Navigate to="/" replace />} />
@@ -86,4 +104,4 @@ function App() {
     );
 }
 
-export default App
+export default App;

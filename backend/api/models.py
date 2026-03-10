@@ -4,18 +4,12 @@ from django.conf import settings
 
 class User(AbstractUser):
     ADMIN = 'ADMIN'
-    HR = 'HR'
-    MANAGER = 'MANAGER'
-    ACCOUNTANT = 'ACCOUNTANT'
-    STAFF = 'STAFF'
+    USER = 'USER'
     ROLE_CHOICES = [
         (ADMIN, 'Administration (Superadmin)'),
-        (HR, 'Management (HR)'),
-        (MANAGER, 'Management'),
-        (ACCOUNTANT, 'Accountant'),
-        (STAFF, 'Staff'),
+        (USER, 'User'),
     ]
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=STAFF)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default=USER)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -26,6 +20,8 @@ class User(AbstractUser):
         if self.role == self.ADMIN:
             self.is_superuser = True
             self.is_staff = True
+        elif not self.is_superuser:
+            self.is_staff = False
         super().save(*args, **kwargs)
 
 class Branch(models.Model):
@@ -501,6 +497,7 @@ class HRTicket(models.Model):
     def __str__(self):
         return f"Ticket #{self.id} - {self.subject} ({self.status})"
 
+
 class TicketMessage(models.Model):
     ticket = models.ForeignKey(HRTicket, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ticket_messages')
@@ -597,6 +594,7 @@ class Channel(models.Model):
     description = models.TextField(blank=True, default='')
     department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True, related_name='channels')
     is_private = models.BooleanField(default=False)
+    type = models.CharField(max_length=20, choices=[('PUBLIC', 'Public'), ('PRIVATE', 'Private'), ('DIRECT', 'Direct')], default='PUBLIC')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_channels')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -657,3 +655,5 @@ def update_performance_summary(sender, instance, **kwargs):
         summary.update_rating()
         # Trigger departmental ranking update
         PerformanceSummary.update_department_rankings(instance.employee.department_id, instance.month)
+
+
