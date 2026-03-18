@@ -1,0 +1,20 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\USER\.npmrc
+5 silly config load:file:C:\Users\USER\AppData\Roaming\npm\etc\npmrc
+6 verbose title npm exec playwright-cli run-code await page.screenshot({ path: C:\\Users\\USER\\Documents\\Projects\\vemrehr\\output\\playwright\\login.png, fullPage: true })
+7 verbose argv "exec" "--yes" "--package" "@playwright/cli" "--" "playwright-cli" "run-code" "await page.screenshot({ path: C:\\\\Users\\\\USER\\\\Documents\\\\Projects\\\\vemrehr\\\\output\\\\playwright\\\\login.png, fullPage: true })"
+8 verbose logfile logs-max:10 dir:C:\Users\USER\Documents\Projects\vemrehr\output\npm-cache\_logs\2026-03-16T14_19_34_172Z-
+9 verbose logfile C:\Users\USER\Documents\Projects\vemrehr\output\npm-cache\_logs\2026-03-16T14_19_34_172Z-debug-0.log
+10 silly logfile done cleaning log files
+11 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+12 http fetch GET 200 https://registry.npmjs.org/@playwright%2fcli 899ms (cache revalidated)
+13 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+14 verbose cwd C:\Users\USER\Documents\Projects\vemrehr
+15 verbose os Windows_NT 10.0.26100
+16 verbose node v24.14.0
+17 verbose npm  v11.9.0
+18 verbose exit 0
+19 info ok

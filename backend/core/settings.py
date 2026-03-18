@@ -29,6 +29,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'HOST_IP', '192.168.1.12', '*']
 
 # Security Hardening (Production)
 if not DEBUG:

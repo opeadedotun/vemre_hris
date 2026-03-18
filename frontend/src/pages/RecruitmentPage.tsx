@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { Users, Briefcase, LayoutGrid, Plus, Search, ChevronRight, Loader2 } from 'lucide-react';
+import { Briefcase, LayoutGrid, Plus, Search, ChevronRight, Loader2, Eye, FileDown, Mail } from 'lucide-react';
 
 interface JobPosting {
     id: number;
@@ -15,9 +15,25 @@ interface Applicant {
     id: number;
     first_name: string;
     last_name: string;
+    full_name?: string;
+    email: string;
+    phone: string;
     status: string;
     job_title: string;
+    job_department?: string;
+    job_location?: string | null;
+    job_type?: string | null;
+    job_description?: string | null;
+    job_requirements?: string | null;
+    job_salary_range?: string | null;
+    job_closing_date?: string | null;
     applied_at: string;
+    resume?: string | null;
+    resume_url?: string | null;
+    resume_filename?: string | null;
+    resume_size_kb?: number | null;
+    cover_letter?: string | null;
+    linkedin_profile?: string | null;
 }
 
 const STAGES = [
@@ -36,6 +52,12 @@ const RecruitmentPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showJobModal, setShowJobModal] = useState(false);
+    const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
+    const [offerLoadingId, setOfferLoadingId] = useState<number | null>(null);
+    const [offerEmailingId, setOfferEmailingId] = useState<number | null>(null);
+
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+    const mediaBase = apiBase.replace(/\/api(\/v1)?$/, '');
 
     const fetchData = async () => {
         setLoading(true);
@@ -59,7 +81,14 @@ const RecruitmentPage: React.FC = () => {
 
     const updateApplicantStatus = async (id: number, status: string) => {
         try {
-            await api.post(`/recruitment/applicants/${id}/change_status/`, { status });
+            const res = await api.post(`/recruitment/applicants/${id}/change_status/`, { status });
+            if (status === 'REJECTED') {
+                if (res.data?.rejection_email_error) {
+                    alert(res.data.rejection_email_error);
+                } else if (res.data?.rejection_email_sent) {
+                    alert('Rejection email sent successfully.');
+                }
+            }
             fetchData();
         } catch (error) {
             console.error('Error updating status:', error);
@@ -79,6 +108,47 @@ const RecruitmentPage: React.FC = () => {
         } catch (error) {
             console.error('Error managing job:', error);
             alert('Unable to update job status.');
+        }
+    };
+
+    const resolveResumeLink = (app: Applicant) => {
+        if (app.resume_url) return app.resume_url;
+        if (app.resume) {
+            if (app.resume.startsWith('http')) return app.resume;
+            return `${mediaBase}${app.resume}`;
+        }
+        return null;
+    };
+
+    const downloadOfferLetter = async (app: Applicant) => {
+        setOfferLoadingId(app.id);
+        try {
+            const res = await api.get(`/recruitment/applicants/${app.id}/offer_letter/`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Offer_Letter_${app.first_name}_${app.last_name}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Error generating offer letter:', error);
+            alert('Unable to generate offer letter.');
+        } finally {
+            setOfferLoadingId(null);
+        }
+    };
+
+    const sendOfferLetter = async (app: Applicant) => {
+        setOfferEmailingId(app.id);
+        try {
+            const res = await api.post(`/recruitment/applicants/${app.id}/send_offer_letter/`);
+            alert(res.data?.message || 'Offer letter sent successfully.');
+        } catch (error: any) {
+            console.error('Error sending offer letter:', error);
+            alert(error.response?.data?.error || 'Unable to send offer letter.');
+        } finally {
+            setOfferEmailingId(null);
         }
     };
 
@@ -139,8 +209,20 @@ const RecruitmentPage: React.FC = () => {
                                 <div className="space-y-2">
                                     {filteredApplicants.filter(a => a.status === stage.id).map((app) => (
                                         <div key={app.id} className="bg-white border border-slate-200 rounded-lg p-3">
-                                            <p className="font-semibold text-sm">{app.first_name} {app.last_name}</p>
-                                            <p className="text-xs text-slate-500">{app.job_title}</p>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <p className="font-semibold text-sm">{app.full_name || `${app.first_name} ${app.last_name}`}</p>
+                                                    <p className="text-xs text-slate-500">{app.job_title}</p>
+                                                    <p className="text-[10px] text-slate-400">{app.email}</p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setSelectedApplicant(app)}
+                                                    className="p-1 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded"
+                                                    title="View application details"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            </div>
                                             <div className="mt-2 flex gap-1 flex-wrap">
                                                 {STAGES.filter(s => s.id !== stage.id).map((n) => (
                                                     <button key={n.id} onClick={() => updateApplicantStatus(app.id, n.id)} className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200">
@@ -148,6 +230,26 @@ const RecruitmentPage: React.FC = () => {
                                                     </button>
                                                 ))}
                                             </div>
+                                            {app.status === 'OFFER' && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <button
+                                                        onClick={() => downloadOfferLetter(app)}
+                                                        disabled={offerLoadingId === app.id}
+                                                        className="text-xs px-2 py-1 rounded bg-primary-50 text-primary-700 hover:bg-primary-100"
+                                                    >
+                                                        <FileDown size={12} className="inline mr-1" />
+                                                        {offerLoadingId === app.id ? 'Generating...' : 'Offer Letter'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => sendOfferLetter(app)}
+                                                        disabled={offerEmailingId === app.id}
+                                                        className="text-xs px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                                    >
+                                                        <Mail size={12} className="inline mr-1" />
+                                                        {offerEmailingId === app.id ? 'Sending...' : 'Send Offer'}
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -184,6 +286,94 @@ const RecruitmentPage: React.FC = () => {
                     }}
                 />
             )}
+
+            {selectedApplicant && (
+                <ApplicantDetailModal
+                    applicant={selectedApplicant}
+                    onClose={() => setSelectedApplicant(null)}
+                    resolveResumeLink={resolveResumeLink}
+                />
+            )}
+        </div>
+    );
+};
+
+interface ApplicantDetailModalProps {
+    applicant: Applicant;
+    onClose: () => void;
+    resolveResumeLink: (app: Applicant) => string | null;
+}
+
+const ApplicantDetailModal: React.FC<ApplicantDetailModalProps> = ({ applicant, onClose, resolveResumeLink }) => {
+    const resumeLink = resolveResumeLink(applicant);
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-8">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold">{applicant.full_name || `${applicant.first_name} ${applicant.last_name}`}</h2>
+                        <p className="text-slate-500">{applicant.job_title} · {applicant.status}</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400">Close</button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Application Details</h3>
+                        <div className="text-sm text-slate-600 space-y-1">
+                            <p><span className="font-semibold">Email:</span> {applicant.email}</p>
+                            <p><span className="font-semibold">Phone:</span> {applicant.phone}</p>
+                            <p><span className="font-semibold">LinkedIn:</span> {applicant.linkedin_profile || 'N/A'}</p>
+                            <p><span className="font-semibold">Applied:</span> {new Date(applicant.applied_at).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">CV Details</h3>
+                        <div className="text-sm text-slate-600 space-y-1">
+                            <p><span className="font-semibold">File Name:</span> {applicant.resume_filename || 'N/A'}</p>
+                            <p><span className="font-semibold">File Size:</span> {applicant.resume_size_kb ? `${applicant.resume_size_kb} KB` : 'N/A'}</p>
+                            {resumeLink ? (
+                                <a href={resumeLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700">
+                                    <FileDown size={14} /> Download CV
+                                </a>
+                            ) : (
+                                <p className="text-slate-400">No CV uploaded.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {applicant.cover_letter && (
+                    <div className="mt-6">
+                        <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Cover Letter</h3>
+                        <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{applicant.cover_letter}</p>
+                    </div>
+                )}
+
+                <div className="mt-6">
+                    <h3 className="text-sm font-bold text-slate-700 uppercase tracking-widest">Job Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-sm text-slate-600">
+                        <p><span className="font-semibold">Department:</span> {applicant.job_department || 'N/A'}</p>
+                        <p><span className="font-semibold">Location:</span> {applicant.job_location || 'N/A'}</p>
+                        <p><span className="font-semibold">Job Type:</span> {applicant.job_type || 'N/A'}</p>
+                        <p><span className="font-semibold">Salary Range:</span> {applicant.job_salary_range || 'N/A'}</p>
+                        <p><span className="font-semibold">Closing Date:</span> {applicant.job_closing_date ? new Date(applicant.job_closing_date).toLocaleDateString() : 'N/A'}</p>
+                    </div>
+                    {applicant.job_description && (
+                        <div className="mt-4">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Description</p>
+                            <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{applicant.job_description}</p>
+                        </div>
+                    )}
+                    {applicant.job_requirements && (
+                        <div className="mt-4">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Requirements</p>
+                            <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{applicant.job_requirements}</p>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

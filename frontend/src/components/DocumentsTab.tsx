@@ -23,6 +23,7 @@ interface Document {
 
 interface DocumentsTabProps {
     employeeId: number;
+    mineOnly?: boolean;
 }
 
 const DOCUMENT_TYPES = [
@@ -34,7 +35,7 @@ const DOCUMENT_TYPES = [
     { value: 'OTHER', label: 'Other' },
 ];
 
-const DocumentsTab: React.FC<DocumentsTabProps> = ({ employeeId }) => {
+const DocumentsTab: React.FC<DocumentsTabProps> = ({ employeeId, mineOnly = false }) => {
     const [documents, setDocuments] = useState<Document[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
@@ -48,7 +49,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employeeId }) => {
     const fetchDocuments = async () => {
         setLoading(true);
         try {
-            const response = await api.get(`/employee-documents/?employee=${employeeId}`);
+            const url = mineOnly ? '/employee-documents/?mine=1' : `/employee-documents/?employee=${employeeId}`;
+            const response = await api.get(url);
             setDocuments(response.data);
         } catch (error) {
             console.error('Error fetching documents:', error);
@@ -59,7 +61,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employeeId }) => {
 
     useEffect(() => {
         fetchDocuments();
-    }, [employeeId]);
+    }, [employeeId, mineOnly]);
 
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();

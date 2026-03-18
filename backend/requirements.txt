@@ -7,3 +7,5 @@ python-dotenv
 pandas
 openpyxl
 reportlab
+pypdf
+python-docx

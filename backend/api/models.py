@@ -610,6 +610,7 @@ class ChannelMember(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='channel_memberships')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='MEMBER')
     last_read_at = models.DateTimeField(null=True, blank=True)
+    last_typing_at = models.DateTimeField(null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -622,10 +623,12 @@ class ChannelMember(models.Model):
 class Message(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='sent_messages')
+    reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     message_text = models.TextField()
     file_attachment = models.FileField(upload_to='chat_files/', null=True, blank=True)
     is_edited = models.BooleanField(default=False)
     reactions = models.JSONField(default=dict)  # {"👍": [user_id, ...], "❤️": [...]}
+    deleted_by = models.ManyToManyField(User, related_name='deleted_messages', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

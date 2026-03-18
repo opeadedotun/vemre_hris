@@ -49,7 +49,7 @@ const MyExpensesPage: React.FC = () => {
         setLoading(true);
         try {
             const [expRes, catRes] = await Promise.all([
-                api.get('/expenses/'),
+                api.get('/expenses/?mine=1'),
                 api.get('/expense-categories/')
             ]);
             setExpenses(expRes.data);

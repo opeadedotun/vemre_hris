@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
+import { getAuthBaseURL } from '../api/urls';
 import { Lock, User, AlertCircle } from 'lucide-react';
 import logo from '../assets/logo.png';
 
@@ -20,8 +21,7 @@ const LoginPage: React.FC = () => {
         setLoading(true);
 
         try {
-            const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-            const authBaseURL = baseURL.replace('/v1', '');
+            const authBaseURL = getAuthBaseURL();
             const response = await axios.post(`${authBaseURL}/auth/token/`, {
                 username,
                 password,

@@ -33,7 +33,7 @@ const ReimbursementPage: React.FC = () => {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState('PENDING'); // Default to what needs action
+    const [filterStatus, setFilterStatus] = useState('ALL'); // Default to what needs action
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [showReimburseModal, setShowReimburseModal] = useState<Expense | null>(null);
     const [paymentRef, setPaymentRef] = useState('');

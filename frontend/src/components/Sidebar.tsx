@@ -31,6 +31,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 import logo from '../assets/logo.png';
+import api from '../api/axios';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -40,6 +41,69 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const [totalUnread, setTotalUnread] = React.useState(0);
+    const prevColleagueCountsRef = React.useRef<Record<number, number>>({});
+
+    // Request notification permission on first load
+    React.useEffect(() => {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // Helper to fire a system push notification
+    const fireNotification = React.useCallback((title: string, body: string) => {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        const options: any = {
+            body,
+            icon: logo,
+            badge: logo,
+            vibrate: [200, 100, 200],
+            tag: 'vemrehr-chat',
+            renotify: true,
+        };
+        // Prefer ServiceWorker for mobile (PWA) support
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready
+                .then((reg) => reg.showNotification(title, options))
+                .catch(() => new Notification(title, options));
+        } else {
+            new Notification(title, options);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        const fetchColleaguesUnread = async () => {
+            try {
+                // Poll colleagues endpoint — it returns per-person unread_count
+                const res = await api.get('/channels/colleagues/');
+                const colleagues: Array<{ id: number; full_name: string; unread_count?: number }> = res.data || [];
+
+                let newTotal = 0;
+                colleagues.forEach((coll) => {
+                    const unread = coll.unread_count || 0;
+                    newTotal += unread;
+
+                    const prev = prevColleagueCountsRef.current[coll.id] || 0;
+                    // If this specific colleague's count increased, notify with their name
+                    if (unread > prev && Object.keys(prevColleagueCountsRef.current).length > 0) {
+                        fireNotification(
+                            `New message from ${coll.full_name}`,
+                            'Tap to open Connect & Chat'
+                        );
+                    }
+                    prevColleagueCountsRef.current[coll.id] = unread;
+                });
+
+                setTotalUnread(newTotal);
+            } catch {
+                // silently fail
+            }
+        };
+        fetchColleaguesUnread();
+        const interval = setInterval(fetchColleaguesUnread, 5000);
+        return () => clearInterval(interval);
+    }, [fireNotification]);
 
     // Strictly enforce Administrator access as per user request
     const isManagementAuthorized = user?.role === 'ADMIN';
@@ -111,6 +175,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                 <NavLink
                                     key={item.to}
                                     to={item.to}
+                                    onClick={onClose}
                                     className={({ isActive }) => `
                                         flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group
                                         ${isActive
@@ -133,15 +198,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                 key={item.to}
                                 to={item.to}
                                 end={item.end}
+                                onClick={onClose}
                                 className={({ isActive }) => `
-                                    flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 group
+                                    flex justify-between items-center px-4 py-3 rounded-2xl transition-all duration-300 group
                                     ${isActive
                                         ? 'bg-primary-600 text-white shadow-lg shadow-primary-900/20'
                                         : 'text-slate-400 hover:bg-white/5 hover:text-white'}
                                 `}
                             >
-                                <item.icon size={20} className={`transition-transform group-hover:scale-110 ${item.color}`} />
-                                <span className="font-bold text-sm tracking-tight">{item.name}</span>
+                                <div className="flex items-center gap-3">
+                                    <item.icon size={20} className={`transition-transform group-hover:scale-110 ${item.color}`} />
+                                    <span className="font-bold text-sm tracking-tight">{item.name}</span>
+                                </div>
+                                {item.name === 'Connect & Chat' && totalUnread > 0 && (
+                                    <div className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        {totalUnread > 99 ? '99+' : totalUnread}
+                                    </div>
+                                )}
                             </NavLink>
                         ))}
                     </div>

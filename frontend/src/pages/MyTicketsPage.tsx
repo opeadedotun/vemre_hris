@@ -45,7 +45,7 @@ const MyTicketsPage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
-                <HelpdeskTab employeeId={employeeId} />
+                <HelpdeskTab employeeId={employeeId} mineOnly />
             </div>
         </div>
     );

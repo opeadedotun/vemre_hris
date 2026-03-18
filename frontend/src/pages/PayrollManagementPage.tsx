@@ -41,6 +41,7 @@ const PayrollManagementPage: React.FC = () => {
     const handleProcess = async () => {
         setProcessing(true);
         try {
+            await api.post('/attendance-summaries/process_monthly/', { month });
             const res = await api.post('/payroll-runs/process/', { month });
             alert(res.data.message);
             fetchPayroll();
@@ -321,3 +322,4 @@ const PayrollManagementPage: React.FC = () => {
 };
 
 export default PayrollManagementPage;
+

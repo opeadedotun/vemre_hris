@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import AskHRBot from './AskHRBot';
 import { Menu, X } from 'lucide-react';
@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 const Layout: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const { user } = useAuth();
+    const location = useLocation();
+    const isChatPage = location.pathname.startsWith('/chat');
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row">
@@ -31,8 +33,8 @@ const Layout: React.FC = () => {
                 </div>
             </main>
 
-            {/* Floating AI FAQ Bot */}
-            <AskHRBot />
+            {/* Floating AI FAQ Bot - hidden on Chat page */}
+            {!isChatPage && <AskHRBot />}
         </div>
     );
 };

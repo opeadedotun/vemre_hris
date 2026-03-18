@@ -1,0 +1,45 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.14.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\USER\Documents\Projects\vemrehr\frontend\.npmrc
+5 silly config load:file:C:\Users\USER\.npmrc
+6 silly config load:file:C:\Users\USER\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install"
+9 verbose logfile logs-max:10 dir:C:\Users\USER\Documents\Projects\vemrehr\output\npm-cache\_logs\2026-03-16T14_38_38_069Z-
+10 verbose logfile C:\Users\USER\Documents\Projects\vemrehr\output\npm-cache\_logs\2026-03-16T14_38_38_069Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 silly logfile done cleaning log files
+14 silly idealTree buildDeps
+15 silly fetch manifest @capacitor/local-notifications@^8.2.0
+16 silly packumentCache full:https://registry.npmjs.org/@capacitor%2flocal-notifications cache-miss
+17 http fetch GET 200 https://registry.npmjs.org/@capacitor%2flocal-notifications 2093ms (cache miss)
+18 silly packumentCache full:https://registry.npmjs.org/@capacitor%2flocal-notifications set size:undefined disposed:false
+19 silly placeDep ROOT @capacitor/local-notifications@ OK for: vemrehr-frontend@0.0.0 want: ^8.2.0
+20 verbose type range
+21 verbose stack @capacitor/local-notifications: No matching version found for @capacitor/local-notifications@^8.2.0.
+21 verbose stack     at module.exports (C:\Program Files\nodejs\node_modules\npm\node_modules\npm-pick-manifest\lib\index.js:210:23)
+21 verbose stack     at RegistryFetcher.manifest (C:\Program Files\nodejs\node_modules\npm\node_modules\pacote\lib\registry.js:130:54)
+21 verbose stack     at async #fetchManifest (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1214:20)
+21 verbose stack     at async #nodeFromEdge (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:1052:19)
+21 verbose stack     at async #buildDepStep (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:916:11)
+21 verbose stack     at async Arborist.buildIdealTree (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\build-ideal-tree.js:170:7)
+21 verbose stack     at async Promise.all (index 1)
+21 verbose stack     at async Arborist.reify (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:110:5)
+21 verbose stack     at async Install.exec (C:\Program Files\nodejs\node_modules\npm\lib\commands\install.js:151:5)
+21 verbose stack     at async Npm.exec (C:\Program Files\nodejs\node_modules\npm\lib\npm.js:208:9)
+22 error code ETARGET
+23 error notarget No matching version found for @capacitor/local-notifications@^8.2.0.
+24 error notarget In most cases you or one of your dependencies are requesting
+24 error notarget a package version that doesn't exist.
+25 silly unfinished npm timer reify 1773671919140
+26 silly unfinished npm timer reify:loadTrees 1773671919143
+27 verbose cwd C:\Users\USER\Documents\Projects\vemrehr\frontend
+28 verbose os Windows_NT 10.0.26100
+29 verbose node v24.14.0
+30 verbose npm  v11.9.0
+31 verbose exit 1
+32 verbose code 1
+33 error A complete log of this run can be found in: C:\Users\USER\Documents\Projects\vemrehr\output\npm-cache\_logs\2026-03-16T14_38_38_069Z-debug-0.log

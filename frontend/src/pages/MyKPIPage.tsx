@@ -54,8 +54,8 @@ const MyKPIPage: React.FC = () => {
             try {
                 const [meRes, kpiRes, perfRes] = await Promise.all([
                     api.get('/employees/me/'),
-                    api.get('/employee-kpis/'),
-                    api.get('/performance-summaries/'),
+                    api.get('/employee-kpis/?mine=1'),
+                    api.get('/performance-summaries/?mine=1'),
                 ]);
                 setEmployee(meRes.data);
                 setRows(kpiRes.data || []);

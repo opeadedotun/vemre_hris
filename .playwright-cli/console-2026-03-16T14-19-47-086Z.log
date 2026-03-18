@@ -1,0 +1,5 @@
+[   21606ms] [ERROR] Error fetching jobs: AxiosError: Network Error
+    at w.onerror (http://127.0.0.1:4173/assets/index-BwHNj3Yz.js:69:6196)
+    at Ia.request (http://127.0.0.1:4173/assets/index-BwHNj3Yz.js:71:2085)
+    at async http://127.0.0.1:4173/assets/index-BwHNj3Yz.js:114:907 @ http://127.0.0.1:4173/assets/index-BwHNj3Yz.js:113
+[   21607ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_TIMED_OUT @ http://192.168.1.12:8000/api/v1/recruitment/jobs/:0

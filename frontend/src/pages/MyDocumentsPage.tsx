@@ -45,7 +45,7 @@ const MyDocumentsPage: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
-                <DocumentsTab employeeId={employeeId} />
+                <DocumentsTab employeeId={employeeId} mineOnly />
             </div>
         </div>
     );

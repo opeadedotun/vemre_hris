@@ -163,10 +163,29 @@ class PayrollRecordSerializer(serializers.ModelSerializer):
     job_title = serializers.ReadOnlyField(source='employee.job_title')
     department_name = serializers.ReadOnlyField(source='employee.department.name')
     passport = serializers.ImageField(source='employee.passport', read_only=True)
+    attendance_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = PayrollRecord
         fields = '__all__'
+
+    def get_attendance_summary(self, obj):
+        month = obj.payroll_run.month if obj.payroll_run else None
+        if not month:
+            return None
+        summary = AttendanceMonthlySummary.objects.filter(employee=obj.employee, month=month).first()
+        if not summary:
+            return None
+        return {
+            'total_late_30': summary.total_late_30,
+            'total_late_1hr': summary.total_late_1hr,
+            'total_query': summary.total_query,
+            'total_late_days': summary.total_late_days,
+            'absent_days': summary.absent_days,
+            'salary_deduction_amount': str(summary.salary_deduction_amount),
+            'absent_deduction_amount': str(summary.absent_deduction_amount),
+            'is_processed': summary.is_processed,
+        }
 
 
 class PayrollRunSerializer(serializers.ModelSerializer):
@@ -331,6 +350,7 @@ class ChannelSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
+    typing_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Channel
@@ -359,6 +379,19 @@ class ChannelSerializer(serializers.ModelSerializer):
             'created_at': msg.created_at.isoformat()
         }
 
+    def get_typing_status(self, obj):
+        from django.utils import timezone
+        import datetime
+        request = self.context.get('request')
+        typing_users = []
+        if request:
+            threshold = timezone.now() - datetime.timedelta(seconds=5)
+            # Find members who are not the current user and typed recently
+            active_typers = obj.members.filter(last_typing_at__gte=threshold).exclude(user=request.user)
+            for tm in active_typers:
+                typing_users.append(tm.user.first_name or tm.user.username)
+        return typing_users
+
 
 class ChannelMemberDetailSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source='user.username')
@@ -375,14 +408,37 @@ class MessageSerializer(serializers.ModelSerializer):
     sender_passport = serializers.SerializerMethodField()
     content = serializers.CharField(source='message_text')
     file_url = serializers.SerializerMethodField()
+    reply_to_snippet = serializers.SerializerMethodField()
+    is_read = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
         fields = (
             'id', 'channel', 'sender', 'sender_name', 'sender_username', 'sender_passport',
-            'content', 'file_attachment', 'file_url', 'is_edited', 'reactions', 'created_at', 'updated_at'
+            'content', 'file_attachment', 'file_url', 'reply_to', 'reply_to_snippet', 'is_edited', 'reactions', 'is_read', 'created_at', 'updated_at'
         )
-        read_only_fields = ('sender', 'is_edited', 'reactions', 'created_at', 'updated_at')
+        read_only_fields = ('sender', 'reply_to_snippet', 'is_edited', 'reactions', 'is_read', 'created_at', 'updated_at')
+
+    def get_is_read(self, obj):
+        if obj.channel.type != 'DIRECT':
+            return False
+        # Calculate if the recipient has read this message
+        other_members = obj.channel.members.exclude(user=obj.sender)
+        if not other_members.exists():
+            return False
+        other_member = other_members.first()
+        if other_member.last_read_at and other_member.last_read_at >= obj.created_at:
+            return True
+        return False
+
+    def get_reply_to_snippet(self, obj):
+        if not obj.reply_to:
+            return None
+        return {
+            'id': obj.reply_to.id,
+            'text': obj.reply_to.message_text[:50],
+            'sender': obj.reply_to.sender.first_name if obj.reply_to.sender else 'System'
+        }
 
     def get_file_url(self, obj):
         if obj.file_attachment:
@@ -402,6 +458,8 @@ class MessageSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(emp.passport.url)
         return emp.passport.url
+
+
 
 
 

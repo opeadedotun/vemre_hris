@@ -41,24 +41,24 @@ const ESSDashboard: React.FC = () => {
 
                 // Fetch current month attendance
                 const currentMonth = new Date().toISOString().slice(0, 7);
-                const attRes = await api.get(`/attendance-monthly-summaries/?employee=${empRes.data.id}&month=${currentMonth}`);
+                const attRes = await api.get(`/attendance-monthly-summaries/?month=${currentMonth}&mine=1`);
                 if (attRes.data.length > 0) {
                     setAttendance(attRes.data[0]);
                 }
 
                 // Check today's clock status
                 const today = new Date().toISOString().slice(0, 10);
-                const logsRes = await api.get(`/attendance-logs/?employee=${empRes.data.id}&date=${today}`);
+                const logsRes = await api.get(`/attendance-logs/?date=${today}&mine=1`);
                 if (logsRes.data.length > 0) {
                     setTodayLog(logsRes.data[0]);
                 }
 
                 // Fetch ticket stats
-                const ticketRes = await api.get(`/hr-tickets/?employee=${empRes.data.id}`);
+                const ticketRes = await api.get(`/hr-tickets/?mine=1`);
                 const openTickets = ticketRes.data.filter((t: any) => t.status !== 'CLOSED' && t.status !== 'RESOLVED').length;
 
                 // Fetch document stats
-                const docRes = await api.get(`/employee-documents/?employee=${empRes.data.id}`);
+                const docRes = await api.get(`/employee-documents/?mine=1`);
 
                 setStats({
                     activeTickets: openTickets,
@@ -105,7 +105,7 @@ const ESSDashboard: React.FC = () => {
 
                     // Refresh data
                     const today = new Date().toISOString().slice(0, 10);
-                    const logsRes = await api.get(`/attendance-logs/?employee=${employee.id}&date=${today}`);
+                    const logsRes = await api.get(`/attendance-logs/?date=${today}&mine=1`);
                     if (logsRes.data.length > 0) {
                         setTodayLog(logsRes.data[0]);
                     }

@@ -51,7 +51,7 @@ const MyLeavesPage: React.FC = () => {
         try {
             const [typesRes, requestsRes] = await Promise.all([
                 api.get('/leave-types/'),
-                api.get('/leave-requests/')
+                api.get('/leave-requests/?mine=1')
             ]);
             setLeaveTypes(typesRes.data);
             setLeaveRequests(requestsRes.data);

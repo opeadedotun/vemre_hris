@@ -13,8 +13,8 @@ const MyPayoutPage: React.FC = () => {
         const run = async () => {
             try {
                 const [runsRes, recRes] = await Promise.all([
-                    api.get('/payroll-runs/'),
-                    api.get('/payroll-records/'),
+                    api.get('/payroll-runs/?mine=1'),
+                    api.get('/payroll-records/?mine=1'),
                 ]);
                 const runData = runsRes.data || [];
                 setRuns(runData);
@@ -48,13 +48,21 @@ const MyPayoutPage: React.FC = () => {
 
     const downloadPayslip = async (recordId: number, month: string) => {
         try {
-            const res = await api.get(`/payroll-records/${recordId}/payslip_pdf/`, { responseType: 'blob' });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+            const response = await fetch(`${apiBase}/payroll-records/${recordId}/payslip_pdf/`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `Payslip_${month}.pdf`;
             document.body.appendChild(a);
             a.click();
+            window.URL.revokeObjectURL(url);
             a.remove();
         } catch (err) {
             console.error('Failed to download payslip', err);

@@ -39,9 +39,10 @@ interface HRTicket {
 interface HelpdeskTabProps {
     employeeId: number;
     isAdminView?: boolean;
+    mineOnly?: boolean;
 }
 
-const HelpdeskTab: React.FC<HelpdeskTabProps> = ({ employeeId, isAdminView = false }) => {
+const HelpdeskTab: React.FC<HelpdeskTabProps> = ({ employeeId, isAdminView = false, mineOnly = false }) => {
     const [tickets, setTickets] = useState<HRTicket[]>([]);
     const [selectedTicket, setSelectedTicket] = useState<HRTicket | null>(null);
     const [loading, setLoading] = useState(true);
@@ -60,7 +61,9 @@ const HelpdeskTab: React.FC<HelpdeskTabProps> = ({ employeeId, isAdminView = fal
     const fetchTickets = async () => {
         setLoading(true);
         try {
-            const url = isAdminView ? '/hr-tickets/' : `/hr-tickets/?employee=${employeeId}`;
+            const url = mineOnly
+                ? '/hr-tickets/?mine=1'
+                : isAdminView ? '/hr-tickets/' : `/hr-tickets/?employee=${employeeId}`;
             const response = await api.get(url);
             setTickets(response.data);
 
@@ -78,7 +81,7 @@ const HelpdeskTab: React.FC<HelpdeskTabProps> = ({ employeeId, isAdminView = fal
 
     useEffect(() => {
         fetchTickets();
-    }, [employeeId]);
+    }, [employeeId, mineOnly, isAdminView]);
 
     const handleCreateTicket = async (e: React.FormEvent) => {
         e.preventDefault();

@@ -235,3 +235,117 @@ def generate_resignation_acceptance_pdf(resignation):
     pdf = buffer.getvalue()
     buffer.close()
     return pdf
+
+def generate_offer_letter_pdf(applicant, cv_email=None):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=48)
+    styles = getSampleStyleSheet()
+
+    header_style = ParagraphStyle('Header', parent=styles['Heading1'], alignment=1, spaceAfter=18)
+    section_title = ParagraphStyle('SectionTitle', parent=styles['Heading3'], spaceAfter=8)
+    content_style = ParagraphStyle('Content', parent=styles['Normal'], fontSize=10, leading=14, spaceAfter=10)
+    label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold')
+
+    elements = []
+
+    logo_path = os.path.join(settings.BASE_DIR, '..', 'img', 'vemre_logo.png')
+    if os.path.exists(logo_path):
+        logo_img = Image(logo_path, width=1.6 * inch, height=0.6 * inch)
+        logo_img.hAlign = 'CENTER'
+        elements.append(logo_img)
+        elements.append(Spacer(1, 0.12 * inch))
+
+    company_name = "Vemre Aremu Enterprise Limited"
+    elements.append(Paragraph(company_name.upper(), header_style))
+    elements.append(Paragraph("Offer of Employment", ParagraphStyle('OfferTitle', parent=styles['Heading2'], alignment=1, spaceAfter=12)))
+    elements.append(Paragraph(f"Date: {timezone.now().strftime('%d %B %Y')}", styles['Normal']))
+    elements.append(Spacer(1, 0.2 * inch))
+
+    applicant_name = f"{applicant.first_name} {applicant.last_name}".strip()
+    job = applicant.job_posting
+    applied_date = applicant.created_at.strftime('%d %B %Y') if applicant.created_at else "N/A"
+
+    resume_name = os.path.basename(applicant.resume.name) if applicant.resume else "N/A"
+    resume_ext = os.path.splitext(resume_name)[1].replace('.', '').upper() if applicant.resume else "N/A"
+    resume_size = "N/A"
+    if applicant.resume and hasattr(applicant.resume, 'size'):
+        resume_size = f"{round(applicant.resume.size / 1024, 1)} KB"
+
+    elements.append(Paragraph(f"Dear {applicant_name},", content_style))
+    elements.append(Paragraph(
+        f"We are pleased to offer you employment for the position of <b>{job.title}</b> at {company_name}. "
+        "This offer is based on your application and our assessment of your qualifications.",
+        content_style
+    ))
+
+    elements.append(Paragraph("Application Details", section_title))
+    app_data = [
+        [Paragraph("Applicant Name:", label_style), Paragraph(applicant_name, content_style)],
+        [Paragraph("Email:", label_style), Paragraph(applicant.email or "N/A", content_style)],
+        [Paragraph("Phone:", label_style), Paragraph(applicant.phone or "N/A", content_style)],
+        [Paragraph("LinkedIn:", label_style), Paragraph(applicant.linkedin_profile or "N/A", content_style)],
+        [Paragraph("Applied On:", label_style), Paragraph(applied_date, content_style)],
+        [Paragraph("Current Status:", label_style), Paragraph(applicant.status or "N/A", content_style)],
+    ]
+    app_table = Table(app_data, colWidths=[1.6 * inch, 4.2 * inch])
+    app_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(app_table)
+    elements.append(Spacer(1, 0.2 * inch))
+
+    elements.append(Paragraph("Attached CV Details", section_title))
+    cv_data = [
+        [Paragraph("File Name:", label_style), Paragraph(resume_name, content_style)],
+        [Paragraph("File Type:", label_style), Paragraph(resume_ext or "N/A", content_style)],
+        [Paragraph("File Size:", label_style), Paragraph(resume_size, content_style)],
+        [Paragraph("CV Email:", label_style), Paragraph(cv_email or "N/A", content_style)],
+    ]
+    cv_table = Table(cv_data, colWidths=[1.6 * inch, 4.2 * inch])
+    cv_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(cv_table)
+    elements.append(Spacer(1, 0.2 * inch))
+
+    elements.append(Paragraph("Job Information", section_title))
+    job_data = [
+        [Paragraph("Title:", label_style), Paragraph(job.title, content_style)],
+        [Paragraph("Department:", label_style), Paragraph(job.department.name if job.department else "N/A", content_style)],
+        [Paragraph("Job Type:", label_style), Paragraph(job.job_type or "N/A", content_style)],
+        [Paragraph("Location:", label_style), Paragraph(job.location or "N/A", content_style)],
+        [Paragraph("Salary Range:", label_style), Paragraph(job.salary_range or "N/A", content_style)],
+        [Paragraph("Closing Date:", label_style), Paragraph(job.closing_date.strftime('%d %B %Y') if job.closing_date else "N/A", content_style)],
+    ]
+    job_table = Table(job_data, colWidths=[1.6 * inch, 4.2 * inch])
+    job_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(job_table)
+    elements.append(Spacer(1, 0.15 * inch))
+
+    if job.description:
+        elements.append(Paragraph("Role Summary", section_title))
+        elements.append(Paragraph(job.description.replace('\n', '<br/>'), content_style))
+
+    if job.requirements:
+        elements.append(Paragraph("Key Requirements", section_title))
+        elements.append(Paragraph(job.requirements.replace('\n', '<br/>'), content_style))
+
+    elements.append(Paragraph(
+        "Please review this offer and reply to confirm your acceptance. Additional onboarding details will follow upon confirmation.",
+        content_style
+    ))
+
+    elements.append(Spacer(1, 0.4 * inch))
+    elements.append(Paragraph("Sincerely,", content_style))
+    elements.append(Paragraph("Human Resources Department", content_style))
+    elements.append(Paragraph(f"<b>{company_name}</b>", content_style))
+
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf

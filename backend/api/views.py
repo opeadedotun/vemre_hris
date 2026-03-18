@@ -1015,9 +1015,13 @@ class ExpenseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['ADMIN', 'HR', 'ACCOUNTANT']:
+        mine_only = _mine_only(self.request)
+        if user.role in ['ADMIN', 'HR', 'ACCOUNTANT'] and not mine_only:
             return Expense.objects.all().order_by('-date')
-        return Expense.objects.filter(employee__email=user.email).order_by('-date')
+        employee = _current_employee(user)
+        if not employee:
+            return Expense.objects.none()
+        return Expense.objects.filter(employee=employee).order_by('-date')
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -1519,15 +1523,77 @@ class ChannelViewSet(viewsets.ModelViewSet):
             passport_url = None
             if emp.passport:
                 passport_url = request.build_absolute_uri(emp.passport.url)
+            
+            # Find the unread count for the direct channel between them
+            unread_count = 0
+            if emp.email in user_map:
+                try:
+                    other_user_id = user_map[emp.email]
+                    direct_channel = Channel.objects.filter(type='DIRECT', members__user=request.user).filter(members__user_id=other_user_id).first()
+                    if direct_channel:
+                        membership = direct_channel.members.filter(user=request.user).first()
+                        if membership and membership.last_read_at:
+                            unread_count = direct_channel.messages.filter(created_at__gt=membership.last_read_at).exclude(sender=request.user).exclude(deleted_by=request.user).count()
+                        elif membership:
+                            unread_count = direct_channel.messages.exclude(sender=request.user).exclude(deleted_by=request.user).count()
+                except Exception:
+                    pass
+
             data.append({
                 'id': emp.id,
                 'full_name': emp.full_name,
                 'email': emp.email,
                 'job_title': emp.job_title,
                 'passport': passport_url,
-                'user_id': user_map.get(emp.email)
+                'user_id': user_map.get(emp.email),
+                'unread_count': unread_count
             })
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def total_unread(self, request):
+        user = request.user
+        total = 0
+        channels = Channel.objects.filter(members__user=user).distinct()
+        for channel in channels:
+            membership = channel.members.filter(user=user).first()
+            if membership and membership.last_read_at:
+                total += channel.messages.filter(created_at__gt=membership.last_read_at).exclude(sender=user).exclude(deleted_by=user).count()
+            elif membership:
+                total += channel.messages.exclude(sender=user).exclude(deleted_by=user).count()
+        return Response({'total_unread': total})
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        channel = self.get_object()
+        membership = channel.members.filter(user=request.user).first()
+        if membership:
+            from django.utils import timezone
+            membership.last_read_at = timezone.now()
+            membership.save()
+            return Response({'status': 'marked as read'})
+        return Response({'detail': 'Not a member'}, status=status.HTTP_403_FORBIDDEN)
+
+    @action(detail=True, methods=['post'])
+    def typing(self, request, pk=None):
+        channel = self.get_object()
+        membership = channel.members.filter(user=request.user).first()
+        if membership:
+            from django.utils import timezone
+            membership.last_typing_at = timezone.now()
+            membership.save(update_fields=['last_typing_at'])
+            return Response({'status': 'typing...'})
+        return Response({'detail': 'Not a member'}, status=status.HTTP_403_FORBIDDEN)
+
+    @action(detail=True, methods=['post'])
+    def clear_chat(self, request, pk=None):
+        channel = self.get_object()
+        # Ensure only direct chats are cleared if requested, but realistically we can allow any channel types 
+        # to clear for the user via deleted_by
+        messages = channel.messages.exclude(deleted_by=request.user)
+        for msg in messages:
+            msg.deleted_by.add(request.user)
+        return Response({'status': 'chat cleared for user'})
 
     @action(detail=False, methods=['post'])
     def get_or_create_direct(self, request):
@@ -1571,11 +1637,23 @@ class MessageViewSet(viewsets.ModelViewSet):
             # Verify user is member of channel
             if not ChannelMember.objects.filter(channel_id=channel_id, user=self.request.user).exists():
                 return Message.objects.none()
-            return Message.objects.filter(channel_id=channel_id).order_by('created_at')
+            return Message.objects.filter(channel_id=channel_id).exclude(deleted_by=self.request.user).order_by('created_at')
         return Message.objects.none()
 
     def perform_create(self, serializer):
+        # Handle reply_to here if passed in request data since it's a plain field
         serializer.save(sender=self.request.user)
+        
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.sender != request.user:
+            return Response({'detail': 'You can only delete your own messages.'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Soft delete for everyone by literally removing the contents? Or full delete.
+        # Given they want to 'delete message' like whatsapp, let's keep hard delete here or soft delete for all.
+        # Hard delete is fine for 'delete for everyone' when it's your own message.
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 # ---- Patch layer: stricter access control, recruitment APIs, onboarding fallback, and chat fixes ----
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -1593,6 +1671,10 @@ def _current_employee(user):
         return None
 
 
+def _mine_only(request):
+    return str(request.query_params.get('mine', '')).lower() in ['1', 'true', 'yes']
+
+
 class FixedEmployeeViewSet(EmployeeViewSet):
     def get_queryset(self):
         user = self.request.user
@@ -1608,7 +1690,8 @@ class FixedEmployeeKPIViewSet(EmployeeKPIViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = EmployeeKPI.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1623,7 +1706,8 @@ class FixedPerformanceSummaryViewSet(PerformanceSummaryViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = PerformanceSummary.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1635,7 +1719,8 @@ class FixedAttendanceLogViewSet(AttendanceLogViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = AttendanceLog.objects.all().order_by('-date', '-check_in')
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1647,7 +1732,8 @@ class FixedAttendanceSummaryViewSet(AttendanceSummaryViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = AttendanceSummary.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1659,7 +1745,8 @@ class FixedAttendanceMonthlySummaryViewSet(AttendanceMonthlySummaryViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = AttendanceMonthlySummary.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1671,7 +1758,8 @@ class FixedPayrollRunViewSet(PayrollRunViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = PayrollRun.objects.all().order_by('-created_at')
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1680,7 +1768,7 @@ class FixedPayrollRunViewSet(PayrollRunViewSet):
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
-        if self.request.user.role != 'ADMIN':
+        if self.request.user.role != 'ADMIN' or _mine_only(self.request):
             ctx['employee'] = _current_employee(self.request.user)
         return ctx
 
@@ -1689,7 +1777,8 @@ class FixedPayrollRecordViewSet(PayrollRecordViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = PayrollRecord.objects.select_related('employee', 'payroll_run').all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1709,7 +1798,8 @@ class FixedLeaveTypeViewSet(LeaveTypeViewSet):
 class FixedLeaveRequestViewSet(LeaveRequestViewSet):
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return LeaveRequest.objects.all().order_by('-start_date')
         employee = _current_employee(user)
         if not employee:
@@ -1736,7 +1826,8 @@ class FixedEmployeeDocumentViewSet(EmployeeDocumentViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = EmployeeDocument.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
@@ -1760,7 +1851,8 @@ class FixedHRTicketViewSet(HRTicketViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = HRTicket.objects.all()
-        if user.role == 'ADMIN':
+        mine_only = _mine_only(self.request)
+        if user.role == 'ADMIN' and not mine_only:
             return qs
         employee = _current_employee(user)
         if not employee:
